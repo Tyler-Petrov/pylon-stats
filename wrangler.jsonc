@@ -1,0 +1,9 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "pylon-stats",
+	"account_id": "f8bdca2bb163fea5cdabf6348bef9049",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_als"],
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" }
+}

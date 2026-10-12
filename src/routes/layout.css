@@ -1,0 +1,148 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn-svelte/tailwind.css';
+@import '@fontsource-variable/big-shoulders-display';
+@import '@fontsource-variable/atkinson-hyperlegible-next';
+@import '@fontsource-variable/spline-sans-mono';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Night game. The app is dark-only, so one palette serves both :root and .dark.
+ * asphalt  #0E1113  page
+ * tunnel   #161A1D  cards
+ * chalk    #EDF0EA  text
+ * sideline #8E978F  secondary text
+ * pylon    #FF7A2F  primary accent, live games
+ * turf     #6CC788  wins
+ * flag     #E5604F  losses, injuries
+ * Team pages swap in the team's own colour as --team (see routes/teams/[id]).
+ */
+:root,
+.dark {
+	--background: #0e1113;
+	--foreground: #edf0ea;
+	--card: #161a1d;
+	--card-foreground: #edf0ea;
+	--popover: #1b2024;
+	--popover-foreground: #edf0ea;
+	--primary: #ff7a2f;
+	--primary-foreground: #1a0d04;
+	--secondary: #20262a;
+	--secondary-foreground: #edf0ea;
+	--muted: #20262a;
+	--muted-foreground: #8e978f;
+	--accent: #232a2e;
+	--accent-foreground: #edf0ea;
+	--destructive: #e5604f;
+	--border: rgb(237 240 234 / 9%);
+	--input: rgb(237 240 234 / 14%);
+	--ring: rgb(255 122 47 / 60%);
+	--pylon: #ff7a2f;
+	--turf: #6cc788;
+	--flag: #e5604f;
+	--team: var(--pylon);
+	--chart-1: #ff7a2f;
+	--chart-2: #6cc788;
+	--chart-3: #e5604f;
+	--chart-4: #7fa6b8;
+	--chart-5: #c08bb5;
+	--radius: 0.75rem;
+	--sidebar: #121518;
+	--sidebar-foreground: #edf0ea;
+	--sidebar-primary: #ff7a2f;
+	--sidebar-primary-foreground: #1a0d04;
+	--sidebar-accent: #232a2e;
+	--sidebar-accent-foreground: #edf0ea;
+	--sidebar-border: rgb(237 240 234 / 9%);
+	--sidebar-ring: rgb(255 122 47 / 60%);
+}
+
+@theme inline {
+	--font-sans: 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-display: 'Big Shoulders Display Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'Spline Sans Mono Variable', ui-monospace, monospace;
+	--color-pylon: var(--pylon);
+	--color-turf: var(--turf);
+	--color-flag: var(--flag);
+	--color-team: var(--team);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+	--color-foreground: var(--foreground);
+	--color-background: var(--background);
+	--radius-sm: calc(var(--radius) * 0.6);
+	--radius-md: calc(var(--radius) * 0.8);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) * 1.4);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* The content column of every page, with the page gutter inside, so headers and content line up. */
+@utility page-column {
+	@apply mx-auto w-full max-w-6xl px-4 md:px-8;
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	html {
+		scrollbar-gutter: stable;
+		@apply font-sans antialiased;
+		-webkit-tap-highlight-color: transparent;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+	/* Tailwind 4 leaves buttons on the default arrow; anything clickable shows the hand. */
+	button:not(:disabled),
+	[role='button']:not([aria-disabled='true']),
+	[role='tab'],
+	[role='option'],
+	[role='menuitem'],
+	label[for],
+	select,
+	summary {
+		cursor: pointer;
+	}
+	h1,
+	h2,
+	h3 {
+		@apply font-display font-bold tracking-wide uppercase;
+	}
+}
+
+/* Scores and stats read like a stadium board: tabular mono, so columns of numbers line up. */
+@utility stat {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
