@@ -1,6 +1,6 @@
 // ESPN's public site API. Unofficial and undocumented, but keyless and stable for years.
 // Everything ESPN-shaped stays in this file: the rest of the app sees the types in #lib/types.js.
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import type {
 	Conference,
 	DepthUnit,
@@ -25,16 +25,49 @@ const ATHLETES = 'https://site.web.api.espn.com/apis/common/v3/sports/football/n
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 // ESPN's JSON is deep and loosely typed; we only read it here, and map it into our own types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
 
 /*
+ * ESPN's edge turns away some requests from Cloudflare's datacenter IPs with a 403, more often when they
+ * don't look like they came from a browser. So look like one, and give a refused request a second try.
+ */
+const HEADERS = {
+	accept: 'application/json',
+	'user-agent':
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
+	referer: 'https://www.espn.com/'
+};
+const RETRY_AFTER = 500;
+
+async function request(url: string): Promise<Json> {
+	let status = 0;
+	for (const attempt of [1, 2]) {
+		if (attempt > 1) await new Promise((resolve) => setTimeout(resolve, RETRY_AFTER));
+		// A network failure gets the same second try as a refusal.
+		const response = await fetch(url, { headers: HEADERS }).catch(() => null);
+		if (response?.ok) return response.json();
+		if (response?.status === 404) error(404, 'Not found');
+		await response?.body?.cancel();
+		status = response?.status ?? 0;
+		if (response && status !== 403 && status !== 429 && status < 500) break;
+	}
+	error(502, status ? `ESPN answered ${status}` : "Couldn't reach ESPN");
+}
+
+/*
  * Responses are cached in memory per server instance, so a busy page costs ESPN one request per TTL rather
  * than one per visitor. In-flight requests are shared too, and a failed request isn't cached.
+ *
+ * The last good response for each URL is kept for a day, and served when ESPN fails: a slightly old page
+ * beats an error page. It's capped, oldest first, since a Worker only gets 128 MB.
  */
 const cache = new Map<string, { expires: number; value: Promise<Json> }>();
+const lastGood = new Map<string, { until: number; data: Json }>();
+const LAST_GOOD_MAX = 200;
 
 function get(url: string, ttl: number): Promise<Json> {
 	const now = Date.now();
@@ -44,11 +77,20 @@ function get(url: string, ttl: number): Promise<Json> {
 	if (cache.size > 500)
 		for (const [key, entry] of cache) if (entry.expires <= now) cache.delete(key);
 
-	const value = fetch(url, { headers: { accept: 'application/json' } }).then((response) => {
-		if (response.status === 404) error(404, 'Not found');
-		if (!response.ok) error(502, `ESPN answered ${response.status}`);
-		return response.json();
-	});
+	const value = request(url).then(
+		(data) => {
+			lastGood.delete(url);
+			lastGood.set(url, { until: Date.now() + DAY, data });
+			if (lastGood.size > LAST_GOOD_MAX) lastGood.delete(lastGood.keys().next().value!);
+			return data;
+		},
+		(failure) => {
+			const fallback = lastGood.get(url);
+			if (fallback && fallback.until > Date.now() && !isHttpError(failure, 404))
+				return fallback.data;
+			throw failure;
+		}
+	);
 	cache.set(url, { expires: now + ttl, value });
 	value.catch(() => cache.delete(url));
 	return value;
