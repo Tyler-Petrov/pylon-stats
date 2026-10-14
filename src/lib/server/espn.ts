@@ -63,11 +63,13 @@ async function request(url: string): Promise<Json> {
  * than one per visitor. In-flight requests are shared too, and a failed request isn't cached.
  *
  * The last good response for each URL is kept for a day, and served when ESPN fails: a slightly old page
- * beats an error page. It's capped, oldest first, since a Worker only gets 128 MB.
+ * beats an error page. It's capped, oldest first, since a Worker only gets 128 MB. A fallback
+ * is only cached briefly, so ESPN gets asked again soon rather than after the URL's full TTL.
  */
 const cache = new Map<string, { expires: number; value: Promise<Json> }>();
 const lastGood = new Map<string, { until: number; data: Json }>();
 const LAST_GOOD_MAX = 200;
+const FALLBACK_TTL = 30 * SECOND;
 
 function get(url: string, ttl: number): Promise<Json> {
 	const now = Date.now();
@@ -86,12 +88,14 @@ function get(url: string, ttl: number): Promise<Json> {
 		},
 		(failure) => {
 			const fallback = lastGood.get(url);
-			if (fallback && fallback.until > Date.now() && !isHttpError(failure, 404))
-				return fallback.data;
-			throw failure;
+			if (!fallback || fallback.until <= Date.now() || isHttpError(failure, 404)) throw failure;
+			// `cached` is set below, before ESPN can possibly have answered.
+			cached.expires = Math.min(cached.expires, Date.now() + FALLBACK_TTL);
+			return fallback.data;
 		}
 	);
-	cache.set(url, { expires: now + ttl, value });
+	const cached = { expires: now + ttl, value };
+	cache.set(url, cached);
 	value.catch(() => cache.delete(url));
 	return value;
 }
