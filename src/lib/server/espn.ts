@@ -20,7 +20,8 @@ import type {
 
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
 const STANDINGS = 'https://site.api.espn.com/apis/v2/sports/football/nfl/standings';
-const ATHLETES = 'https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes';
+// site.web.api.espn.com serves the same athlete API but refuses every request from Cloudflare's IPs.
+const ATHLETES = 'https://site.api.espn.com/apis/common/v3/sports/football/nfl/athletes';
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
