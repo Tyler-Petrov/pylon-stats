@@ -4,9 +4,10 @@ import type { LayoutLoad } from './$types';
 
 // Standings are for the division table, and the opponents' records in the schedule.
 export const load: LayoutLoad = async ({ params }) => {
-	const teamQueries = await warm(getTeam(params.id), getStandings());
-	await getTeam(params.id).then(
-		(team) => warmImage(team.logo),
+	const team = getTeam(params.id);
+	const teamQueries = await warm(team, getStandings());
+	await team.then(
+		(t) => warmImage(t.logo),
 		() => {}
 	);
 	return { teamQueries };
