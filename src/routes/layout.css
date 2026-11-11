@@ -146,3 +146,57 @@
 	font-family: var(--font-mono);
 	font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Page transitions (lib/view-transitions.ts). The page cross-fades, quickly out and a little slower in. A team's
+ * logo travels between a list and the team's page; the active team tab and division row slide to their new place.
+ * The nav, and a team's header between its tabs, stay live and still. Movement within a page is lib/motion.ts.
+ */
+::view-transition-group(*) {
+	animation-duration: 340ms;
+	animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+::view-transition-old(root) {
+	animation: 140ms cubic-bezier(0.4, 0, 1, 1) both page-out;
+}
+::view-transition-new(root) {
+	animation: 220ms cubic-bezier(0, 0, 0.2, 1) 60ms both page-in;
+}
+/* What stays put shows its live state from the first frame, so it never fades or lags behind. */
+::view-transition-group(sidebar),
+::view-transition-group(tabbar),
+::view-transition-group(team-header),
+::view-transition-new(sidebar),
+::view-transition-new(tabbar),
+::view-transition-new(team-header) {
+	animation: none;
+}
+::view-transition-old(sidebar),
+::view-transition-old(tabbar),
+::view-transition-old(team-header) {
+	display: none;
+}
+/* The same logo at both ends: no cross-fade, only the move. */
+::view-transition-old(team-logo) {
+	display: none;
+}
+::view-transition-new(team-logo) {
+	animation: none;
+}
+@keyframes page-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes page-in {
+	from {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}

@@ -1,14 +1,24 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getSchedule } from '#lib/nfl.remote.js';
-	import { gameDay, kickoff } from '#lib/format.js';
+	import { getSchedule, getStandings } from '#lib/nfl.remote.js';
+	import { gameDay, kickoff, record } from '#lib/format.js';
 	import { cn } from '#lib/utils.js';
 	import TeamLogo from '#lib/components/team-logo.svelte';
 	import type { Game } from '#lib/types.js';
 
 	let { teamId }: { teamId: string } = $props();
 
-	const games = $derived(await getSchedule(teamId));
+	// Standings give every opponent's record as it stands today; the team page's division table asks for
+	// them too, so it's the same request.
+	const [games, conferences] = $derived(await Promise.all([getSchedule(teamId), getStandings()]));
+
+	const records = $derived(
+		new Map(
+			conferences
+				.flatMap((c) => c.divisions.flatMap((d) => d.teams))
+				.map((row) => [row.team.id, record(row)])
+		)
+	);
 
 	// ESPN leaves the bye out of the schedule; put it back where the gap in week numbers is.
 	type Row = { kind: 'game'; game: Game } | { kind: 'bye'; week: number };
@@ -47,14 +57,19 @@
 				<span class="hidden w-28 text-muted-foreground sm:block">{gameDay(game.date)}</span>
 				<a
 					href={resolve('/teams/[id=id]', { id: them.team.id })}
-					class="flex min-w-0 flex-1 items-center gap-2.5 hover:underline"
+					class="group flex min-w-0 flex-1 items-center gap-2.5"
 				>
 					<span class="w-4 text-muted-foreground">{home ? 'vs' : '@'}</span>
 					<TeamLogo team={them.team} class="size-7" />
-					<span class="truncate">
+					<span class="truncate group-hover:underline">
 						<span class="hidden md:inline">{them.team.location}</span>
 						<span class="font-medium">{them.team.nickname}</span>
 					</span>
+					{#if records.has(them.team.id)}
+						<span class="shrink-0 stat text-xs text-muted-foreground" title="Current record">
+							{records.get(them.team.id)}
+						</span>
+					{/if}
 				</a>
 				{#if game.state === 'post'}
 					<span class="flex items-center gap-2 stat">

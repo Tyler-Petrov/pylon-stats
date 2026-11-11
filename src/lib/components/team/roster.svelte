@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { getRoster } from '#lib/nfl.remote.js';
 	import { cn } from '#lib/utils.js';
+	import { fadeIn } from '#lib/motion.js';
 	import type { Player } from '#lib/types.js';
 
 	let { teamId }: { teamId: string } = $props();
@@ -16,6 +17,7 @@
 				src={player.headshot}
 				alt=""
 				loading="lazy"
+				{@attach fadeIn}
 				class="absolute top-0 left-1/2 h-full max-w-none -translate-x-1/2 object-cover"
 			/>
 		{/if}
@@ -94,7 +96,7 @@
 						{#if starter}
 							<a
 								href={resolve('/players/[id=id]', { id: starter.id })}
-								class="flex min-w-0 items-center gap-3 rounded-lg hover:text-team"
+								class="flex min-w-0 items-center gap-3 rounded-lg transition-colors hover:text-team"
 							>
 								{@render headshot(starter, 'size-10')}
 								<span class="min-w-0 truncate font-medium">{starter.name}</span>
@@ -108,7 +110,7 @@
 							{#each backups as backup (backup.id)}
 								<a
 									href={resolve('/players/[id=id]', { id: backup.id })}
-									class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+									class="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
 								>
 									{backup.name}
 									{#if backup.jersey}
@@ -130,7 +132,7 @@
 				{group.name}
 				<span class="stat text-xs font-normal text-muted-foreground">{group.players.length}</span>
 			</h3>
-			<div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+			<div class="grid gap-2 sm:grid-cols-2">
 				{#each group.players as player (player.id)}
 					{@render card(player)}
 				{/each}

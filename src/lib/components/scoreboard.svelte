@@ -3,6 +3,8 @@
 	import { getScoreboard } from '#lib/nfl.remote.js';
 	import { gameDay } from '#lib/format.js';
 	import { cn } from '#lib/utils.js';
+	import { indicator, move } from '#lib/motion.js';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import GameCard from './game-card.svelte';
 	import PageHeader from './page-header.svelte';
 	import TeamLogo from './team-logo.svelte';
@@ -37,9 +39,21 @@
 		board.weeks.find((w) => w.week === board.week && w.seasonType === board.seasonType)
 	);
 
-	// Scroll the week strip so the week being shown is in view.
-	function intoView(node: HTMLElement, active: boolean) {
-		if (active) node.scrollIntoView({ inline: 'center', block: 'nearest' });
+	// The selected week's pill slides along the strip to the next week picked.
+	const [send, receive] = indicator();
+
+	// Keep the week being shown in the middle of the strip: straight there on arrival, gliding when it changes.
+	let arrived = false;
+	function centre(strip: HTMLElement) {
+		const active = strip.querySelector(`[data-week="${board.seasonType}-${board.week}"]`);
+		if (!active) return;
+		const pill = active.getBoundingClientRect();
+		const view = strip.getBoundingClientRect();
+		strip.scrollTo({
+			left: strip.scrollLeft + pill.left - view.left - (view.width - pill.width) / 2,
+			behavior: arrived && !prefersReducedMotion.current ? 'smooth' : 'instant'
+		});
+		arrived = true;
 	}
 </script>
 
@@ -51,6 +65,7 @@
 <div class="page-column">
 	<nav
 		aria-label="Weeks"
+		{@attach centre}
 		class="-mx-4 mb-6 [scrollbar-width:none] overflow-x-auto px-4 md:mx-0 md:px-0"
 	>
 		<div class="flex w-max gap-1.5 pb-1">
@@ -61,15 +76,22 @@
 						seasonType: w.seasonType,
 						week: w.week
 					})}
-					use:intoView={active}
 					aria-current={active ? 'page' : undefined}
+					data-week="{w.seasonType}-{w.week}"
 					class={cn(
-						'rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors',
+						'relative isolate rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors',
 						active
-							? 'border-pylon bg-pylon text-primary-foreground'
+							? 'border-pylon text-primary-foreground'
 							: 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'
 					)}
 				>
+					{#if active}
+						<span
+							in:receive={{ key: 'week' }}
+							out:send={{ key: 'week' }}
+							class="absolute -inset-px -z-10 rounded-full bg-pylon"
+						></span>
+					{/if}
 					{w.seasonType === 3 ? w.label : w.label.replace('Week ', 'Wk ')}
 				</a>
 			{/each}
@@ -79,9 +101,12 @@
 	{#each days as { day, games } (day)}
 		<section class="mb-8">
 			<h2 class="mb-3 text-xl text-muted-foreground">{day}</h2>
+			<!-- When a refresh moves a game (kickoff, or the final whistle), its card glides to its new place. -->
 			<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 				{#each games as game (game.id)}
-					<GameCard {game} />
+					<div animate:move class="grid">
+						<GameCard {game} />
+					</div>
 				{/each}
 			</div>
 		</section>
@@ -96,7 +121,7 @@
 				{#each board.byes as team (team.id)}
 					<a
 						href={resolve('/teams/[id=id]', { id: team.id })}
-						class="flex items-center gap-2 rounded-full border border-border py-1 pr-3 pl-1.5 text-sm hover:bg-accent"
+						class="flex items-center gap-2 rounded-full border border-border py-1 pr-3 pl-1.5 text-sm transition-colors hover:bg-accent"
 					>
 						<TeamLogo {team} class="size-6" />
 						{team.abbreviation}
