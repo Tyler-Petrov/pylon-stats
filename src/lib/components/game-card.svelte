@@ -100,7 +100,7 @@
 		>
 			{game.situation.downDistance}
 			{#if game.situation.lastPlay}
-				<span class="mt-0.5 line-clamp-2 block text-muted-foreground"
+				<span class="mt-0.5 line-clamp-2 min-h-8 text-muted-foreground"
 					>{game.situation.lastPlay}</span
 				>
 			{/if}

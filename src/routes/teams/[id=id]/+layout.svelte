@@ -91,17 +91,21 @@
 		</div>
 	</header>
 
-	<!-- The division table sits beside the tabs on a wide screen, and above them on a narrow one. -->
+	<!-- The division table sits beside the tabs on a wide screen, and above them on a narrower one. Standings are
+	     extra here: should they fail, the team page carries on without the table. -->
 	<div
-		class="page-column grid gap-6 pt-6 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_19rem]"
+		class="page-column grid gap-6 pt-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start xl:gap-8"
 	>
-		<aside class="lg:sticky lg:top-6 lg:order-last">
-			<Division teamId={params.id} />
+		<aside class="xl:sticky xl:top-6 xl:order-last">
+			<svelte:boundary>
+				<Division teamId={params.id} />
+				{#snippet failed()}{/snippet}
+			</svelte:boundary>
 		</aside>
 
 		<div class="min-w-0">
-			<!-- Switching tabs keeps the scroll where it is. The underline is named for the page transition, so it
-			     slides across to the tab that was picked. -->
+			<!-- Switching tabs keeps the scroll where it is, and the underline slides across to the tab that was
+			     picked (lib/view-transitions.ts). -->
 			<nav aria-label={team.name} class="mb-5 flex gap-1 border-b border-border">
 				{#each tabs as tab (tab.label)}
 					{@const active = page.url.pathname === tab.href}
@@ -116,9 +120,7 @@
 					>
 						{tab.label}
 						{#if active}
-							<span
-								class="absolute inset-x-0 -bottom-px h-0.5 bg-team [view-transition-name:team-tab]"
-							></span>
+							<span data-team-tab class="absolute inset-x-0 -bottom-px h-0.5 bg-team"></span>
 						{/if}
 					</a>
 				{/each}

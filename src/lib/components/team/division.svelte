@@ -16,11 +16,21 @@
 			.find((d) => d.teams.some((row) => row.team.id === teamId))
 	);
 
-	/** Games behind the division leader, the first row: "—" for the leader and anyone level with it. */
+	/** Games behind the division leader, the first row. */
 	function behind(row: StandingRow) {
 		const leader = division!.teams[0];
-		const games = (leader.wins - row.wins + (row.losses - leader.losses)) / 2;
-		return games > 0 ? String(games) : '—';
+		return Math.max(0, (leader.wins - row.wins + (row.losses - leader.losses)) / 2);
+	}
+
+	/** What a screen reader hears for a row: "Denver Broncos: 7-2, leads the division". */
+	function label(row: StandingRow, i: number) {
+		const games = behind(row);
+		const standing = games
+			? `${games} ${games === 1 ? 'game' : 'games'} back`
+			: i === 0
+				? 'leads the division'
+				: 'tied for the division lead';
+		return `${row.team.name}: ${record(row)}, ${standing}`;
 	}
 
 	const columns = 'grid-cols-[minmax(0,1fr)_3.5rem_2.25rem_3rem]';
@@ -53,25 +63,24 @@
 			<span class="text-right">Diff</span>
 		</div>
 		<ol>
-			{#each division.teams as row (row.team.id)}
+			{#each division.teams as row, i (row.team.id)}
 				{@const current = row.team.id === teamId}
 				<li class="border-b border-border last:border-0">
+					<!-- The team's own row goes to its schedule like the tab does, keeping the scroll. -->
 					<a
 						href={resolve('/teams/[id=id]', { id: row.team.id })}
 						aria-current={current ? 'true' : undefined}
-						aria-label="{row.team.name}: {record(row)}, {behind(row) === '—'
-							? 'leads the division'
-							: `${behind(row)} games back`}"
+						aria-label={label(row, i)}
+						data-sveltekit-reset={current ? 'false' : undefined}
 						class={cn(
-							'relative grid items-center gap-2 px-4 py-2 text-sm transition-colors',
+							'relative grid items-center gap-2 px-4 py-2 text-sm -outline-offset-2 transition-colors',
 							columns,
 							!current && 'hover:bg-accent'
 						)}
 					>
-						<!-- Named for the page transition: moving to a rival's page, it slides to their row. -->
+						<!-- Moving to a rival's page, the highlight slides to their row (lib/view-transitions.ts). -->
 						{#if current}
-							<span
-								class="absolute inset-0 border-l-2 border-team bg-team/10 [view-transition-name:division-team]"
+							<span data-division-team class="absolute inset-0 border-l-2 border-team bg-team/10"
 							></span>
 						{/if}
 						<span class="relative flex min-w-0 items-center gap-2.5">
@@ -79,7 +88,7 @@
 							<span class={cn('truncate', current && 'font-medium')}>{row.team.nickname}</span>
 						</span>
 						<span class="relative text-right stat">{record(row)}</span>
-						<span class="relative text-right stat text-muted-foreground">{behind(row)}</span>
+						<span class="relative text-right stat text-muted-foreground">{behind(row) || '—'}</span>
 						<span
 							class={cn(
 								'relative text-right stat',

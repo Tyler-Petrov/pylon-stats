@@ -15,3 +15,13 @@ export async function warm(...queries: PromiseLike<unknown>[]) {
 	await Promise.allSettled(queries);
 	return queries;
 }
+
+/**
+ * Load an image the page is about to show, waiting `ms` at most. A team's page preloads its logo this way, so the
+ * logo that was clicked has a loaded image to grow into.
+ */
+export function warmImage(src: string, ms = 250) {
+	const img = new Image();
+	img.src = src;
+	return Promise.race([img.decode().catch(() => {}), new Promise((done) => setTimeout(done, ms))]);
+}

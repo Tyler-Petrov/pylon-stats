@@ -43,17 +43,24 @@
 	const [send, receive] = indicator();
 
 	// Keep the week being shown in the middle of the strip: straight there on arrival, gliding when it changes.
-	let arrived = false;
+	// Only then: a refresh of the same week leaves alone a strip you've scrolled.
+	const shown = $derived(`${board.seasonType}-${board.week}`);
+	let centred = '';
 	function centre(strip: HTMLElement) {
-		const active = strip.querySelector(`[data-week="${board.seasonType}-${board.week}"]`);
-		if (!active) return;
-		const pill = active.getBoundingClientRect();
-		const view = strip.getBoundingClientRect();
-		strip.scrollTo({
-			left: strip.scrollLeft + pill.left - view.left - (view.width - pill.width) / 2,
-			behavior: arrived && !prefersReducedMotion.current ? 'smooth' : 'instant'
+		const week = shown;
+		// Wait for the strip to be on the page and laid out.
+		let frame = requestAnimationFrame(function measure() {
+			if (!strip.isConnected) return (frame = requestAnimationFrame(measure));
+			const pill = strip.querySelector(`[data-week="${week}"]`)?.getBoundingClientRect();
+			if (!pill) return;
+			const view = strip.getBoundingClientRect();
+			strip.scrollTo({
+				left: strip.scrollLeft + pill.left - view.left - (view.width - pill.width) / 2,
+				behavior: centred && !prefersReducedMotion.current ? 'smooth' : 'instant'
+			});
+			centred = week;
 		});
-		arrived = true;
+		return () => cancelAnimationFrame(frame);
 	}
 </script>
 
@@ -65,6 +72,7 @@
 <div class="page-column">
 	<nav
 		aria-label="Weeks"
+		data-week-strip
 		{@attach centre}
 		class="-mx-4 mb-6 [scrollbar-width:none] overflow-x-auto px-4 md:mx-0 md:px-0"
 	>
