@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { getStandings } from '#lib/nfl.remote.js';
+	import { record } from '#lib/format.js';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import TeamLogo from '#lib/components/team-logo.svelte';
 
@@ -45,8 +46,10 @@
 											{row.team.nickname}
 										</p>
 									</div>
-									<span class="stat text-sm text-muted-foreground group-hover:text-foreground">
-										{row.wins}-{row.losses}{row.ties ? `-${row.ties}` : ''}
+									<span
+										class="stat text-sm text-muted-foreground transition-colors group-hover:text-foreground"
+									>
+										{record(row)}
 									</span>
 								</a>
 							{/each}

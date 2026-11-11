@@ -279,7 +279,10 @@ export async function standings(): Promise<Conference[]> {
 					})
 					.sort(
 						(a: StandingRow, b: StandingRow) =>
-							winPct(b) - winPct(a) || b.diff - a.diff || a.team.name.localeCompare(b.team.name)
+							winPct(b) - winPct(a) ||
+							seedRank(a) - seedRank(b) ||
+							b.diff - a.diff ||
+							a.team.name.localeCompare(b.team.name)
 					)
 			}))
 			.sort(
@@ -291,6 +294,9 @@ export async function standings(): Promise<Conference[]> {
 /** Divisions read North, South, East, West ("AFC North" → 0). */
 const DIVISION_ORDER = ['North', 'South', 'East', 'West'];
 const divisionRank = (name: string) => DIVISION_ORDER.findIndex((d) => name.endsWith(d));
+
+// Teams level on record are split by NFL tiebreakers, which ESPN has already applied to the playoff seeds.
+const seedRank = (r: StandingRow) => r.seed ?? Infinity;
 
 const winPct = (r: StandingRow) => {
 	const games = r.wins + r.losses + r.ties;

@@ -1,11 +1,15 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
+	import { onNavigate } from '$app/navigation';
 	import AppShell from '#lib/components/app-shell.svelte';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
+	import { transition } from '#lib/view-transitions.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+
+	onNavigate(transition);
 </script>
 
 <svelte:head>
@@ -14,12 +18,17 @@
 
 <!-- Pages `await` their queries. The first load shows `pending`; after that, a navigation keeps the
      current page up until the next one's awaits are ready, so pages never flash half-loaded. Inside
-     the shell, so the nav stays put meanwhile. -->
+     the shell, so the nav stays put meanwhile. The page fades in when it first arrives (the wrapper
+     stays put after that), and the spinner only fades in if the wait is long enough to notice. -->
 <AppShell>
 	<svelte:boundary onerror={console.error}>
-		{@render children()}
+		<div class="motion-safe:animate-in motion-safe:duration-300 motion-safe:fade-in">
+			{@render children()}
+		</div>
 		{#snippet pending()}
-			<div class="flex min-h-[60dvh] items-center justify-center">
+			<div
+				class="flex min-h-[60dvh] items-center justify-center motion-safe:animate-in motion-safe:delay-300 motion-safe:fill-mode-backwards motion-safe:fade-in"
+			>
 				<Spinner class="size-6 text-muted-foreground" />
 			</div>
 		{/snippet}

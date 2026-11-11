@@ -1,14 +1,26 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getSchedule } from '#lib/nfl.remote.js';
-	import { gameDay, kickoff } from '#lib/format.js';
+	import { getSchedule, getStandings } from '#lib/nfl.remote.js';
+	import { gameDay, kickoff, record } from '#lib/format.js';
 	import { cn } from '#lib/utils.js';
 	import TeamLogo from '#lib/components/team-logo.svelte';
-	import type { Game } from '#lib/types.js';
+	import type { Conference, Game } from '#lib/types.js';
 
 	let { teamId }: { teamId: string } = $props();
 
-	const games = $derived(await getSchedule(teamId));
+	// Standings give every opponent's record as it stands today; the team page's division table asks for
+	// them too, so it's the same request. They're extra: without them the schedule just has no records.
+	const [games, conferences] = $derived(
+		await Promise.all([getSchedule(teamId), getStandings().catch((): Conference[] => [])])
+	);
+
+	const records = $derived(
+		new Map(
+			conferences
+				.flatMap((c) => c.divisions.flatMap((d) => d.teams))
+				.map((row) => [row.team.id, record(row)])
+		)
+	);
 
 	// ESPN leaves the bye out of the schedule; put it back where the gap in week numbers is.
 	type Row = { kind: 'game'; game: Game } | { kind: 'bye'; week: number };
@@ -47,13 +59,26 @@
 				<span class="hidden w-28 text-muted-foreground sm:block">{gameDay(game.date)}</span>
 				<a
 					href={resolve('/teams/[id=id]', { id: them.team.id })}
-					class="flex min-w-0 flex-1 items-center gap-2.5 hover:underline"
+					class="group flex min-w-0 flex-1 items-center gap-2.5"
 				>
-					<span class="w-4 text-muted-foreground">{home ? 'vs' : '@'}</span>
+					<span class="w-4 shrink-0 text-muted-foreground">{home ? 'vs' : '@'}</span>
 					<TeamLogo team={them.team} class="size-7" />
-					<span class="truncate">
-						<span class="hidden md:inline">{them.team.location}</span>
-						<span class="font-medium">{them.team.nickname}</span>
+					<!-- The record goes under the name, as on a game card, so it never takes the name's room. Where the
+					     row is narrow, the city gives way before the nickname does. -->
+					<span class="min-w-0">
+						<span class="flex gap-1">
+							<span class="hidden min-w-0 shrink-[999] truncate group-hover:underline lg:inline">
+								{them.team.location}
+							</span>
+							<span class="min-w-0 truncate font-medium group-hover:underline">
+								{them.team.nickname}
+							</span>
+						</span>
+						{#if records.has(them.team.id)}
+							<span class="block stat text-xs text-muted-foreground" title="Current record">
+								{records.get(them.team.id)}
+							</span>
+						{/if}
 					</span>
 				</a>
 				{#if game.state === 'post'}
@@ -71,9 +96,10 @@
 				{:else if game.state === 'in'}
 					<span class="stat font-semibold text-pylon">{us.score}–{them.score} · {game.detail}</span>
 				{:else}
-					<span class="text-right text-muted-foreground">
-						<span class="sm:hidden">{gameDay(game.date)} · </span>{kickoff(game.date)}
-						{#if game.broadcast}<span class="hidden md:inline"> · {game.broadcast}</span>{/if}
+					<!-- On a phone the date column is gone, so the day goes above the time, leaving the name its room. -->
+					<span class="shrink-0 text-right text-muted-foreground">
+						<span class="block sm:hidden">{gameDay(game.date)}</span>{kickoff(game.date)}
+						{#if game.broadcast}<span class="hidden lg:inline"> · {game.broadcast}</span>{/if}
 					</span>
 				{/if}
 			</div>

@@ -19,3 +19,7 @@ export const streak = (value: number | null) =>
 
 /** "+41", "-7", "0" */
 export const signed = (value: number) => (value > 0 ? `+${value}` : String(value));
+
+/** "10-7", or "9-7-1" once there's a tie. */
+export const record = ({ wins, losses, ties }: { wins: number; losses: number; ties: number }) =>
+	`${wins}-${losses}${ties ? `-${ties}` : ''}`;

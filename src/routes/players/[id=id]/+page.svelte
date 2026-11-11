@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { getPlayer } from '#lib/nfl.remote.js';
 	import { cn } from '#lib/utils.js';
+	import { fadeIn } from '#lib/motion.js';
 	import type { StatTable } from '#lib/types.js';
 	import type { PageProps } from './$types';
 
@@ -55,15 +56,22 @@
 	>
 		<div class="page-column flex items-end gap-5 pt-6 md:pt-10">
 			{#if player.headshot}
-				<img src={player.headshot} alt="" class="h-32 w-auto object-contain md:h-44" />
+				<!-- ESPN's headshots are all 600×436. Holding that shape keeps the name from jumping across once it loads. -->
+				<img
+					src={player.headshot}
+					alt=""
+					{@attach fadeIn}
+					class="aspect-[600/436] h-32 w-auto object-contain md:h-44"
+				/>
 			{/if}
 			<div class="min-w-0 flex-1 pb-6">
 				{#if player.team}
 					<a
 						href={resolve('/teams/[id=id]', { id: player.team.id })}
-						class="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+						class="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 					>
-						<img src={player.team.logo} alt="" class="size-5" />
+						<!-- `data-team-logo`: the team page's logo shrinks into this one (lib/view-transitions.ts). -->
+						<img src={player.team.logo} alt="" data-team-logo={player.team.id} class="size-5" />
 						{player.team.name}
 					</a>
 				{/if}
