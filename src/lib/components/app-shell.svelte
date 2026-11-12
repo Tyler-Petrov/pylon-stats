@@ -70,11 +70,14 @@
 				{tab.label}
 			</a>
 		{/each}
-		<p class="mt-auto px-3 pb-1 text-xs text-muted-foreground/70">Data from ESPN</p>
 	</nav>
 
 	<main class="min-w-0 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-12">
 		{@render children()}
+		<footer class="page-column pt-12 text-xs text-muted-foreground/70">
+			Data from ESPN. Pylon isn't affiliated with or endorsed by the NFL or ESPN; team names, logos
+			and data belong to their owners.
+		</footer>
 	</main>
 
 	<nav
