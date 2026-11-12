@@ -22,3 +22,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Written by `pnpm dev` for this worktree's running dev server
+.dev-server.sock*
+.dev-server.log

@@ -1,0 +1,58 @@
+name: Deploy preview
+
+# Opt-in: add the deploy-preview label to a PR. Each push while the label is on
+# uploads a new version under the pr-<number> preview alias, without touching
+# production, and comments the URL on the PR.
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+
+concurrency:
+  group: deploy-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'deploy-preview')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The PR's own commit, which the upload message and comment name, not the merge with main.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Upload preview version
+        id: upload
+        run: |
+          set -o pipefail
+          pnpm exec wrangler versions upload --preview-alias "pr-$PR" --message "PR #$PR ${HEAD_SHA::7}" | tee upload.log
+          echo "url=$(grep -oE 'https://pr-[^ ]+\.workers\.dev' upload.log | head -1)" >> "$GITHUB_OUTPUT"
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Comment the preview URL
+        if: ${{ steps.upload.outputs.url }}
+        run: |
+          gh pr comment "$PR" --edit-last --create-if-none --body "Preview for ${HEAD_SHA::7}: $URL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          URL: ${{ steps.upload.outputs.url }}

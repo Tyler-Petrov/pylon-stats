@@ -1,3 +1,4 @@
+// Deployed only by the GitHub workflows (see `pnpm release`); never run `wrangler deploy` by hand.
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "pylon-stats",
@@ -5,5 +6,10 @@
 	"main": ".svelte-kit/cloudflare/_worker.js",
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_als"],
-	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" }
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" },
+	"routes": [{ "pattern": "pylon.tpetrov.dev", "custom_domain": true }],
+	// Production is only pylon.tpetrov.dev. workers.dev serves just the PR previews (the deploy-preview
+	// label), which upload versions under pr-<number> aliases.
+	"workers_dev": false,
+	"preview_urls": true
 }

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
-	import { onNavigate } from '$app/navigation';
+	import { beforeNavigate, onNavigate } from '$app/navigation';
+	import { updated } from '$app/state';
 	import AppShell from '#lib/components/app-shell.svelte';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import { transition } from '#lib/view-transitions.js';
@@ -10,7 +11,26 @@
 	let { children }: LayoutProps = $props();
 
 	onNavigate(transition);
+
+	/* A release replaces the code and remote functions an open page was loaded with. SvelteKit polls
+	   for one (`version` in vite.config.ts), and the page moves onto it at its next navigation, or
+	   straight away while nobody's looking at it. */
+	beforeNavigate(({ willUnload, to, cancel }) => {
+		if (updated.current && !willUnload && to) {
+			cancel();
+			location.href = to.url.href;
+		}
+	});
+	$effect(() => {
+		if (updated.current && document.hidden) location.reload();
+	});
+	// Mobile browsers freeze hidden tabs, so the poll may have missed a release while it was away.
+	async function reloadIfOutdated() {
+		if (document.hidden ? updated.current : await updated.check()) location.reload();
+	}
 </script>
+
+<svelte:document onvisibilitychange={reloadIfOutdated} />
 
 <svelte:head>
 	<link rel="icon" href={favicon} />

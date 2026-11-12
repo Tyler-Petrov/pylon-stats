@@ -1,0 +1,62 @@
+name: Deploy production
+
+run-name: Deploy ${{ inputs.sha }} to production
+
+# Started by `pnpm release`, which passes the main commit it confirmed. Builds
+# that commit and deploys it to the pylon-stats Worker at pylon.tpetrov.dev.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA of the main commit to release
+        required: true
+        type: string
+      confirm_production:
+        description: Confirm production deploy (unchecked runs are rejected)
+        required: true
+        type: boolean
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RELEASE_SHA: ${{ inputs.sha }}
+    steps:
+      - name: Require confirmation
+        if: ${{ !inputs.confirm_production }}
+        run: |
+          echo "::error::Production deploy was not confirmed. Use pnpm release."
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+      - name: Require a commit on main
+        run: |
+          if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || ! git merge-base --is-ancestor "$RELEASE_SHA" origin/main; then
+            echo "::error::$RELEASE_SHA is not a full SHA of a commit on main."
+            exit 1
+          fi
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Deploy
+        run: pnpm exec wrangler deploy --message "${RELEASE_SHA::7}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Check the site answers
+        run: curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --output /dev/null https://pylon.tpetrov.dev/
