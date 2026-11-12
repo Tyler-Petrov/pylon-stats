@@ -4,6 +4,9 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	// `pnpm dev` prints this machine's Tailscale URLs, so listen on every interface and answer the
+	// tailnet's hostname (`tailscale serve` passes it through).
+	server: { host: true, allowedHosts: ['.ts.net'] },
 	plugins: [
 		tailwindcss(),
 		sveltekit({
@@ -14,7 +17,9 @@ export default defineConfig({
 				experimental: { async: true }
 			},
 			adapter: adapter(),
-			experimental: { remoteFunctions: true }
+			experimental: { remoteFunctions: true },
+			// Open pages check for a new release, and the root layout moves them onto it.
+			version: { pollInterval: 5 * 60 * 1000 }
 		})
 	]
 });

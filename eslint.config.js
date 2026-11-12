@@ -35,6 +35,11 @@ export default defineConfig(
 		}
 	},
 	{
+		// The dev server's terminal screen parses the escape codes in its children's output.
+		files: ['scripts/dev-screen.mjs'],
+		rules: { 'no-control-regex': 'off' }
+	},
+	{
 		// Override or add rule settings here, such as:
 		// 'svelte/button-has-type': 'error'
 		rules: {
