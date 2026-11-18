@@ -29,6 +29,7 @@ export function leadersOf(url: Address) {
 
 /** What's being searched for. Under two letters is nothing to search on. */
 export function searchOf(url: Address) {
-	const text = (url.searchParams.get('q') ?? '').trim().slice(0, 40);
+	// Trimmed again after the cut: the remote function trims too, and must come to the same length.
+	const text = (url.searchParams.get('q') ?? '').trim().slice(0, 40).trim();
 	return text.length >= 2 ? text : '';
 }
