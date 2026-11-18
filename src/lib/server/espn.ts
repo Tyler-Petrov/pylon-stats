@@ -417,6 +417,9 @@ export async function game(id: string): Promise<GameDetail> {
 	};
 }
 
+/** ESPN's play types for an extra point and a two-point pass or run that were good. */
+const CONVERSIONS = ['61', '15', '16'];
+
 /** Every drive of a game, first to last. It reads the summary `game` does, so it costs ESPN nothing more. */
 export async function plays(id: string): Promise<Drive[]> {
 	const data = await get(`${SITE}/summary?event=${id}`, 20 * SECOND);
@@ -428,16 +431,24 @@ export async function plays(id: string): Promise<Drive[]> {
 	const current = data.drives?.current;
 	if (current && !drives.some((d) => d.id === current.id)) drives.push(current);
 
+	// On old games the extra point after a defensive touchdown opens the next drive. It goes with the touchdown.
+	const lists: Json[][] = drives.map((d) => [...(d.plays ?? [])]);
+	lists.forEach((list, i) => {
+		while (i && list[0]?.scoringPlay && CONVERSIONS.includes(String(list[0].type?.id)))
+			lists[i - 1].push(list.shift());
+	});
+
 	let away = 0;
 	let home = 0;
-	return drives.map((d) => {
-		const all: Json[] = d.plays ?? [];
+	return drives.map((d, i) => {
+		const all = lists[i];
 		const before = { away, home };
-		// The score as of the drive's last score, or its last play: on old games the kickoff after a score can
-		// carry the wrong one. A drive without a play yet leaves the score where the last one did.
-		const last = all.findLast((p) => p.scoringPlay) ?? all.at(-1);
-		away = last?.awayScore ?? away;
-		home = last?.homeScore ?? home;
+		// The score after the drive's last play. On old games one play near a score can carry a later score
+		// than was true, sometimes the scoring play and sometimes the kickoff after it: the lower of the two is
+		// right. A drive without a play yet leaves the score where the last one did.
+		const scoring = all.findLast((p) => p.scoringPlay) ?? all.at(-1);
+		away = Math.min(scoring?.awayScore ?? away, all.at(-1)?.awayScore ?? away);
+		home = Math.min(scoring?.homeScore ?? home, all.at(-1)?.homeScore ?? home);
 		return {
 			id: String(d.id),
 			team: teamsById.get(String(d.team?.id)) ?? null,
@@ -1013,6 +1024,9 @@ export async function leaders(category?: string, sort?: string, season?: number)
 	// ESPN only names the season it was asked for when it has something for it. One it has nothing for, or
 	// from before the picker starts, is as good as left out.
 	if (asked && !data.season) return leaders(key, sorted);
+	// ESPN sorts by more stats than the table has columns. One that isn't shown gets the category's own.
+	if (sorted !== config.sort && !data.columns.some((c: Json) => c.key === sorted))
+		return leaders(key, undefined, asked);
 	const byId = new Map(all.map((t) => [t.id, t]));
 	const current: number = data.current ?? new Date().getFullYear();
 	return {
@@ -1035,7 +1049,10 @@ export async function leaders(category?: string, sort?: string, season?: number)
 
 /* Search */
 
-/** Teams by name, city or abbreviation, and ESPN's own search for players. It only knows active players. */
+/**
+ * Teams by name, city or abbreviation, and ESPN's own search for players. It knows the players it still ties to
+ * a team, which leaves out nearly everyone who has retired.
+ */
 export async function search(query: string): Promise<SearchResults> {
 	const q = query.trim().toLowerCase();
 	const params = new URLSearchParams({

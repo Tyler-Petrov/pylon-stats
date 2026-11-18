@@ -59,7 +59,7 @@
 {/if}
 
 {#if !results.teams.length && !results.players.length}
-	<!-- ESPN's search only knows players who are on a roster now. -->
+	<!-- ESPN's search knows the players it still ties to a team, not those long retired. -->
 	<p class="py-16 text-center text-muted-foreground">
 		No team or active player matches "{query}".
 	</p>
