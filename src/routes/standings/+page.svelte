@@ -16,29 +16,31 @@
 
 	/* Every division's table gets the same widths (`table-fixed`), so the columns line up down the page and the
 	   team column takes what's left. Widths and which columns show go by the width of the tables, not the
-	   window, since the sidebar takes a share of it on larger screens. */
-	const narrow = 'w-7 @min-[30rem]:w-9';
-	const medium = 'w-11 @min-[30rem]:w-14';
+	   window, since the sidebar takes a share of it on larger screens: phones (under 30rem) get the core stats,
+	   points come in at 40rem, and the home, road and division records at 42rem. Below 54rem it's all a little
+	   tighter. */
+	const narrow = 'w-7 @min-[30rem]:w-8 @min-[54rem]:w-9';
+	const medium = 'w-11 @min-[30rem]:w-12 @min-[54rem]:w-14';
 	const points = 'hidden @min-[40rem]:table-cell';
-	const splits = 'hidden @min-[54rem]:table-cell';
+	const splits = 'hidden @min-[42rem]:table-cell';
 	const columns = [
 		{ label: 'W', title: 'Wins', width: narrow },
 		{ label: 'L', title: 'Losses', width: narrow },
 		{ label: 'T', title: 'Ties', width: narrow },
 		{ label: 'PCT', title: 'Win percentage', width: medium },
-		{ label: 'PF', title: 'Points for', width: 'w-14', show: points },
-		{ label: 'PA', title: 'Points against', width: 'w-14', show: points },
+		{ label: 'PF', title: 'Points for', width: 'w-11 @min-[54rem]:w-14', show: points },
+		{ label: 'PA', title: 'Points against', width: 'w-11 @min-[54rem]:w-14', show: points },
 		{ label: 'DIFF', title: 'Point differential', width: medium },
-		{ label: 'HOME', title: 'Home record', width: 'w-18', show: splits },
-		{ label: 'AWAY', title: 'Road record', width: 'w-18', show: splits },
-		{ label: 'DIV', title: 'Division record', width: 'w-18', show: splits },
-		{ label: 'STRK', title: 'Streak', width: 'w-10 @min-[30rem]:w-16' }
+		{ label: 'HOME', title: 'Home record', width: 'w-14 @min-[54rem]:w-18', show: splits },
+		{ label: 'AWAY', title: 'Road record', width: 'w-14 @min-[54rem]:w-18', show: splits },
+		{ label: 'DIV', title: 'Division record', width: 'w-14 @min-[54rem]:w-18', show: splits },
+		{ label: 'STRK', title: 'Streak', width: 'w-10 @min-[30rem]:w-12 @min-[54rem]:w-16' }
 	];
 </script>
 
 <PageHeader
 	title="Standings"
-	description="Seeds in green would make the playoffs if the season ended today"
+	description="Seeds 1–7 would make the playoffs if the season ended today"
 />
 
 <div class="page-column grid gap-10 pb-12 md:gap-12">
@@ -62,7 +64,7 @@
 					decoding="async"
 					{@attach fadeIn}
 					class={cn(
-						'absolute -top-6 -right-8 w-56 max-w-none rotate-8 sm:w-72 md:-top-6 md:right-0 md:w-96',
+						'absolute -top-4 -right-6 w-48 max-w-none rotate-8 sm:w-72 md:-top-6 md:right-4 md:w-96',
 						nfc ? 'opacity-55 brightness-[0.5] saturate-[0.9]' : 'opacity-45 brightness-[0.38]'
 					)}
 				/>
@@ -73,10 +75,12 @@
 			</div>
 
 			<header class="px-2 pt-4 pb-5 sm:px-1 md:pt-6 md:pb-7">
-				<p class="text-[0.7rem] font-medium tracking-[0.25em] text-foreground/65 uppercase">
-					{fullNames[conference.name] ?? conference.name}
-				</p>
-				<h2 id="conference-{conference.name}" class="mt-0.5 text-6xl leading-none md:text-7xl">
+				<h2 id="conference-{conference.name}" class="text-6xl leading-none md:text-7xl">
+					<span
+						class="mb-0.5 block font-sans text-[0.7rem] font-medium tracking-[0.25em] text-foreground/65"
+					>
+						{fullNames[conference.name] ?? conference.name}
+					</span>
 					{conference.name}
 				</h2>
 			</header>
@@ -84,7 +88,7 @@
 			<div class="@container grid gap-3 sm:gap-4">
 				{#each conference.divisions as division (division.name)}
 					<div class="overflow-x-auto rounded-xl border border-border bg-card">
-						<table class="w-full table-fixed text-sm">
+						<table class="w-full min-w-[19.25rem] table-fixed text-sm">
 							<thead>
 								<tr
 									class="border-b border-border bg-[color-mix(in_oklab,var(--conference)_7%,var(--card))] text-xs text-muted-foreground"
@@ -98,7 +102,7 @@
 										<th
 											title={column.title}
 											class={cn(
-												'px-1 py-2.5 text-right font-medium last:pr-2.5 @min-[30rem]:px-2 @min-[30rem]:last:pr-4',
+												'px-1 py-2.5 text-right font-medium last:pr-2.5 @min-[30rem]:px-1.5 @min-[30rem]:last:pr-4 @min-[54rem]:px-2',
 												column.width,
 												column.show
 											)}
@@ -113,15 +117,19 @@
 									{@const playoff = row.seed !== null && row.seed <= 7}
 									<tr
 										style:--team={row.team.color}
-										class="border-b border-border transition-colors last:border-0 hover:bg-[color-mix(in_oklab,var(--team)_12%,var(--card))] [&>td]:px-1 [&>td]:text-right [&>td]:stat @min-[30rem]:[&>td]:px-2 [&>td:last-child]:pr-2.5 @min-[30rem]:[&>td:last-child]:pr-4"
+										class="border-b border-border transition-colors last:border-0 hover:bg-[color-mix(in_oklab,var(--team)_12%,var(--card))] [&>td]:px-1 [&>td]:text-right [&>td]:stat @min-[30rem]:[&>td]:px-1.5 @min-[54rem]:[&>td]:px-2 [&>td:last-child]:pr-2.5 @min-[30rem]:[&>td:last-child]:pr-4"
 									>
 										<td class="p-0!">
 											<a
 												href={resolve('/teams/[id=id]', { id: row.team.id })}
-												class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans hover:underline @min-[30rem]:gap-2.5 @min-[30rem]:px-4"
+												class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:gap-2.5 @min-[30rem]:px-4"
 											>
 												<TeamLogo team={row.team} class="size-6 shrink-0" />
-												<span class="hidden truncate @min-[30rem]:inline">{row.team.name}</span>
+												<!-- The full name where there's room for it, the nickname in narrower tables, the abbreviation on phones. -->
+												<span class="hidden truncate @min-[54rem]:inline">{row.team.name}</span>
+												<span class="hidden truncate @min-[30rem]:inline @min-[54rem]:hidden"
+													>{row.team.nickname}</span
+												>
 												<span class="@min-[30rem]:hidden">{row.team.abbreviation}</span>
 												{#if row.seed}
 													<span
