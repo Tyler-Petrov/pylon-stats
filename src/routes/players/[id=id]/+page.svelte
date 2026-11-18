@@ -116,6 +116,17 @@
 			</section>
 		{/if}
 
+		{#if !career}
+			<p class="mb-8 text-sm text-muted-foreground">Couldn't load the stats.</p>
+		{:else if !seasons.length && !totals.length}
+			<p class="py-10 text-center text-muted-foreground">No stats yet.</p>
+		{/if}
+
+		<!-- A new player is a new set of games: nothing of the last one's is held over. -->
+		{#key params.id}
+			<Games id={params.id} picked={season.picked} {year} />
+		{/key}
+
 		{#if totals.length}
 			<section class="mb-8">
 				<div class="mb-3 flex flex-wrap items-baseline gap-x-3">
@@ -127,16 +138,5 @@
 				<StatList groups={totals} />
 			</section>
 		{/if}
-
-		{#if !career}
-			<p class="mb-8 text-sm text-muted-foreground">Couldn't load the stats.</p>
-		{:else if !seasons.length && !totals.length}
-			<p class="py-10 text-center text-muted-foreground">No stats yet.</p>
-		{/if}
-
-		<!-- A new player is a new set of games: nothing of the last one's is held over. -->
-		{#key params.id}
-			<Games id={params.id} picked={season.picked} {year} />
-		{/key}
 	</div>
 </div>
