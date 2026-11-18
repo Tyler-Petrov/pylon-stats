@@ -18,11 +18,12 @@
 	   team column takes what's left. Widths and which columns show go by the width of the tables, not the
 	   window, since the sidebar takes a share of it on larger screens: phones (under 30rem) get the core stats,
 	   points come in at 40rem, and the home, road and division records at 42rem. Below 54rem it's all a little
-	   tighter. */
+	   tighter. From the md breakpoint every column shows, as it always has, and a table too narrow for them all
+	   scrolls sideways. */
 	const narrow = 'w-7 @min-[30rem]:w-8 @min-[54rem]:w-9';
 	const medium = 'w-11 @min-[30rem]:w-12 @min-[54rem]:w-14';
-	const points = 'hidden @min-[40rem]:table-cell';
-	const splits = 'hidden @min-[42rem]:table-cell';
+	const points = 'hidden @min-[40rem]:table-cell md:table-cell';
+	const splits = 'hidden @min-[42rem]:table-cell md:table-cell';
 	const columns = [
 		{ label: 'W', title: 'Wins', width: narrow },
 		{ label: 'L', title: 'Losses', width: narrow },
@@ -77,7 +78,7 @@
 			<header class="px-2 pt-4 pb-5 sm:px-1 md:pt-6 md:pb-7">
 				<h2 id="conference-{conference.name}" class="text-6xl leading-none md:text-7xl">
 					<span
-						class="mb-0.5 block font-sans text-[0.7rem] font-medium tracking-[0.25em] text-foreground/65"
+						class="mb-0.5 block font-sans text-[0.7rem] leading-tight font-medium tracking-[0.25em] text-foreground/65"
 					>
 						{fullNames[conference.name] ?? conference.name}
 					</span>
@@ -88,7 +89,7 @@
 			<div class="@container grid gap-3 sm:gap-4">
 				{#each conference.divisions as division (division.name)}
 					<div class="overflow-x-auto rounded-xl border border-border bg-card">
-						<table class="w-full min-w-[19.25rem] table-fixed text-sm">
+						<table class="w-full min-w-[19.25rem] table-fixed text-sm md:min-w-[41rem]">
 							<thead>
 								<tr
 									class="border-b border-border bg-[color-mix(in_oklab,var(--conference)_7%,var(--card))] text-xs text-muted-foreground"
