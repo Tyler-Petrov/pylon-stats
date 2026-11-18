@@ -134,7 +134,7 @@
 			</section>
 		{/if}
 
-		{#if !player.season && !career.length && !log?.seasons.length}
+		{#if !player.season && !career.length && log && !log.seasons.length}
 			<p class="py-10 text-center text-muted-foreground">No stats yet.</p>
 		{/if}
 	</div>

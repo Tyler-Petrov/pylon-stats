@@ -164,7 +164,6 @@ export type GameLog = {
 	tables: StatTable[];
 };
 
-/** A column of a stat table, with the key that sorts by it. */
 /** A column of a leaders table. `sortable` is whether ESPN can order the table by it. */
 export type StatColumn = { key: string; short: string; long: string; sortable: boolean };
 

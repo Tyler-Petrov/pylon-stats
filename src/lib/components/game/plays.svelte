@@ -20,11 +20,15 @@
 	// While the game is on, keep up with it, as the page does with the score. The server caches ESPN for 20
 	// seconds, and it's the response the score comes from, so this asks ESPN for nothing more.
 	let watching: string | undefined;
+	let ended = $state<string>();
 	$effect(() => {
 		const current = query;
 		if (!live) {
 			// The final whistle: one more look, for the plays since the timer's last.
-			if (watching === id) current.refresh();
+			if (watching === id) {
+				current.refresh();
+				ended = id;
+			}
 			watching = undefined;
 			return;
 		}
@@ -37,8 +41,9 @@
 	const quarters = $derived([...Map.groupBy(drives, (drive) => drive.period)]);
 
 	// The drive being played starts open and closes once the next one begins. A drive the reader opened or
-	// closed themselves stays how they left it: a refresh would otherwise put it back.
-	const playing = $derived(live ? drives.at(-1)?.id : undefined);
+	// closed themselves stays how they left it: a refresh would otherwise put it back. When the game ends
+	// under a reader, its last drive stays open: that's where the plays they were waiting for arrive.
+	const playing = $derived(live || ended === id ? drives.at(-1)?.id : undefined);
 	const chosen = new SvelteMap<string, boolean>();
 	function toggled(drive: string, open: boolean) {
 		if (open === (drive === playing)) chosen.delete(drive);
