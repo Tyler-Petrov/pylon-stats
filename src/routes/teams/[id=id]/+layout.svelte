@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { getTeam } from '#lib/nfl.remote.js';
 	import { streak } from '#lib/format.js';
@@ -108,7 +108,8 @@
 			     picked (lib/view-transitions.ts). -->
 			<nav aria-label={team.name} class="mb-5 flex gap-1 border-b border-border">
 				{#each tabs as tab (tab.label)}
-					{@const active = page.url.pathname === tab.href}
+					<!-- The tab being gone to, from the click: not once its page has loaded. -->
+					{@const active = (navigating.to?.url ?? page.url).pathname === tab.href}
 					<a
 						href={tab.href}
 						aria-current={active ? 'page' : undefined}

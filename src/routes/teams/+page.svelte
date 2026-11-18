@@ -31,7 +31,7 @@
 			<div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
 				{#each conference.divisions as division (division.name)}
 					<div>
-						<h3 class="mb-2 text-sm tracking-widest text-muted-foreground">{division.name}</h3>
+						<h3 class="mb-2 text-sm text-muted-foreground">{division.name}</h3>
 						<div class="grid gap-2">
 							{#each division.teams as row (row.team.id)}
 								<a
@@ -42,7 +42,7 @@
 									<TeamLogo team={row.team} class="size-11" />
 									<div class="min-w-0 flex-1">
 										<p class="truncate text-xs text-muted-foreground">{row.team.location}</p>
-										<p class="truncate font-display text-xl font-bold tracking-wide uppercase">
+										<p class="truncate font-display text-xl font-bold">
 											{row.team.nickname}
 										</p>
 									</div>

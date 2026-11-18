@@ -42,6 +42,19 @@
 	--turf: #6cc788;
 	--flag: #e5604f;
 	--team: var(--pylon);
+	/*
+	 * A quiet hue for each kind of stat, so passing reads as passing in a player's season, career and game log
+	 * alike. Kept off the accent, the win and the loss colours.
+	 */
+	--kind-passing: #82aecb;
+	--kind-rushing: #d2b072;
+	--kind-receiving: #c497c4;
+	--kind-defensive: #74bdb2;
+	--kind-kicking: #a5a9dc;
+	--kind-punting: #a5a9dc;
+	--kind-returning: #d59d82;
+	--kind-fumbles: #d59d82;
+	--kind-scoring: #b9c27c;
 	--chart-1: #ff7a2f;
 	--chart-2: #6cc788;
 	--chart-3: #e5604f;
@@ -137,11 +150,39 @@
 	h1,
 	h2,
 	h3 {
-		@apply font-display font-bold tracking-wide uppercase;
+		@apply font-display font-bold;
 	}
 }
 
 /* Scores and stats read like a stadium board: tabular mono, so columns of numbers line up. */
+/*
+ * A row of a list that lights up under the pointer. The light reaches a little past the row on either side, with
+ * rounded corners, so the text never sits on its edge, while the row itself and its lines stay in line with the
+ * rest of the page.
+ */
+/* A number in its kind of stat's hue, mostly the text colour still: a tint, not a highlight. */
+@utility text-tinted {
+	color: color-mix(in oklab, var(--kind, var(--foreground)) 40%, var(--foreground));
+}
+
+@utility hover-row {
+	position: relative;
+	isolation: isolate;
+	&::before {
+		content: '';
+		position: absolute;
+		inset: 0 -0.75rem;
+		z-index: -1;
+		border-radius: var(--radius-lg);
+		background: var(--color-foreground);
+		opacity: 0;
+		transition: opacity 150ms;
+	}
+	&:hover::before {
+		opacity: 0.045;
+	}
+}
+
 @utility stat {
 	font-family: var(--font-mono);
 	font-variant-numeric: tabular-nums;

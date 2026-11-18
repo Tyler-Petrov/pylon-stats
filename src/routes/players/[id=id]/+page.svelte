@@ -1,60 +1,64 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getPlayer } from '#lib/nfl.remote.js';
-	import { cn } from '#lib/utils.js';
+	import { getCareer, getPlayer } from '#lib/nfl.remote.js';
 	import { fadeIn } from '#lib/motion.js';
-	import type { StatTable } from '#lib/types.js';
+	import { season } from '#lib/season.svelte.js';
+	import SeasonPicker from '#lib/components/season-picker.svelte';
+	import Games from '#lib/components/player/games.svelte';
+	import StatList from '#lib/components/player/stat-list.svelte';
+	import RollingNumber from '#lib/components/rolling-number.svelte';
+	import type { StatGroup } from '#lib/types.js';
 	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
 
+	/** The kind of stat each offensive position and specialist is about. Anyone else is on defense. */
+	const LEADS: Record<string, string> = {
+		Quarterback: 'passing',
+		'Running Back': 'rushing',
+		Fullback: 'rushing',
+		'Wide Receiver': 'receiving',
+		'Tight End': 'receiving',
+		'Place Kicker': 'kicking',
+		Punter: 'punting'
+	};
+
 	const player = $derived(await getPlayer(params.id));
+	// Extra to the page: should it fail, the page carries on without it.
+	const career = $derived(await getCareer(params.id).catch(() => null));
+
+	// The season comes from the picker in the sidebar, as it does for the whole app. Left at the current one, a
+	// player with nothing in it yet (or retired) shows the last season he has numbers in.
+	const seasons = $derived(career?.seasons ?? []);
+	const shown = $derived(
+		season.picked ? seasons.find((s) => s.year === season.picked) : seasons.at(0)
+	);
+	const year = $derived(shown?.year ?? (seasons.length ? season.picked : undefined));
+
+	// The kind of stat a player's position is about goes first: a receiver's catches before his three carries.
+	const lead = $derived(LEADS[player.position ?? ''] ?? 'defensive');
+	const categories = $derived(
+		(career?.categories ?? []).toSorted((a, b) => Number(b.key === lead) - Number(a.key === lead))
+	);
+
+	const groups = $derived(
+		categories.flatMap((c): StatGroup[] => {
+			const values = c.seasons.find((s) => s.year === shown?.year)?.values;
+			return values ? [{ key: c.key, title: c.title, columns: c.columns, values }] : [];
+		})
+	);
+	const totals = $derived(
+		categories.flatMap((c): StatGroup[] =>
+			c.totals ? [{ key: c.key, title: c.title, columns: c.columns, values: c.totals }] : []
+		)
+	);
+
+	const games = (count: string) => (count === '1' ? ' game' : ' games');
 </script>
 
 <svelte:head>
 	<title>{player.name} · Pylon</title>
 </svelte:head>
-
-{#snippet table(stats: StatTable, highlightFirst: boolean)}
-	<section class="mb-8">
-		<h2 class="mb-3 text-2xl">{stats.title}</h2>
-		<div class="overflow-x-auto rounded-xl border border-border bg-card">
-			<table class="w-full text-sm whitespace-nowrap">
-				<thead>
-					<tr class="border-b border-border text-xs text-muted-foreground">
-						<th class="sticky left-0 bg-card px-4 py-2.5 text-left font-medium"></th>
-						{#each stats.labels as label, i (i)}
-							<th class="px-2.5 py-2.5 text-right font-medium">{label}</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody>
-					{#each stats.rows as row, r (r)}
-						<tr
-							class={cn(
-								'border-b border-border last:border-0',
-								highlightFirst && r === 0 && 'text-team'
-							)}
-						>
-							<td class="sticky left-0 bg-card px-4 py-2">
-								{#if row.gameId}
-									<a href={resolve('/games/[id=id]', { id: row.gameId })} class="hover:underline">
-										{row.label}
-									</a>
-								{:else}
-									{row.label}
-								{/if}
-							</td>
-							{#each row.values as value, i (i)}
-								<td class="px-2.5 py-2 text-right stat">{value}</td>
-							{/each}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	</section>
-{/snippet}
 
 <div style:--team={player.team?.color ?? 'var(--pylon)'}>
 	<header
@@ -105,14 +109,51 @@
 			{/each}
 		</dl>
 
-		{#if player.season}
-			{@render table(player.season, true)}
+		{#if year}
+			<section class="mb-8">
+				<div class="mb-3 flex flex-wrap items-baseline gap-x-3">
+					<h2 class="text-2xl">{year} season</h2>
+					{#if shown}
+						<p class="text-sm text-muted-foreground">
+							{shown.teams.join(', ')}
+							{#if shown.games}
+								{#if shown.teams.length}·{/if}
+								<RollingNumber value={shown.games} suffix={games(shown.games)} />
+							{/if}
+						</p>
+					{/if}
+					<!-- A phone has no sidebar, so the season is picked here. -->
+					<SeasonPicker align="end" class="ml-auto self-center md:hidden" />
+				</div>
+				{#if shown}
+					<StatList {groups} />
+				{:else}
+					<p class="text-muted-foreground">No stats in {year}.</p>
+				{/if}
+			</section>
 		{/if}
-		{#if player.gameLog}
-			{@render table(player.gameLog, false)}
+
+		{#if !career}
+			<p class="mb-8 text-sm text-muted-foreground">Couldn't load the stats.</p>
+		{:else if !seasons.length && !totals.length}
+			<p class="py-10 text-center text-muted-foreground">No stats yet.</p>
 		{/if}
-		{#if !player.season && !player.gameLog}
-			<p class="py-10 text-center text-muted-foreground">No stats yet this season.</p>
+
+		<!-- A new player is a new set of games: nothing of the last one's is held over. -->
+		{#key params.id}
+			<Games id={params.id} picked={season.picked} {year} />
+		{/key}
+
+		{#if totals.length}
+			<section class="mb-8">
+				<div class="mb-3 flex flex-wrap items-baseline gap-x-3">
+					<h2 class="text-2xl">Career</h2>
+					{#if career?.games}
+						<p class="text-sm text-muted-foreground">{career.games}{games(career.games)}</p>
+					{/if}
+				</div>
+				<StatList groups={totals} />
+			</section>
 		{/if}
 	</div>
 </div>

@@ -23,12 +23,12 @@
 </script>
 
 {#snippet rows(list: { label: string; value: string }[])}
-	<dl class="overflow-hidden rounded-xl border border-border bg-card text-sm">
+	<dl class="border-t border-border text-sm">
 		{#each list as stat (stat.label)}
 			<!-- Two equal columns, the value left aligned in its own. On a phone there's no room for that, so the
 			     value takes only the width it needs, at the right. -->
 			<div
-				class="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-border px-4 py-2 last:border-0 sm:grid-cols-2"
+				class="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-border py-2 sm:grid-cols-2"
 			>
 				<dt class="text-muted-foreground">{stat.label}</dt>
 				<dd class="text-right stat sm:text-left">{stat.value}</dd>
@@ -40,9 +40,9 @@
 <div class="grid gap-10">
 	<section>
 		<h3 class="mb-3 text-2xl">General</h3>
-		<div class="grid gap-2 sm:grid-cols-3">
+		<div class="grid gap-x-8 gap-y-4 sm:grid-cols-3">
 			{#each tiles as stat (stat.label)}
-				<div class="rounded-xl border border-border bg-card p-4">
+				<div class="border-t border-border pt-3">
 					<p class="text-xs text-muted-foreground">{stat.label}</p>
 					<p class="mt-1 stat text-3xl font-semibold">{stat.value}</p>
 					{#if stat.rank}

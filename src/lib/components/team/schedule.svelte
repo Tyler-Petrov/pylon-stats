@@ -42,21 +42,20 @@
 	}
 </script>
 
-<div class="overflow-hidden rounded-xl border border-border bg-card">
+<!-- A plain list: rows ruled off by faint lines, no box around them. It starts right under the tabs' own line. -->
+<div class="-mt-5">
 	{#each rows as row (row.kind === 'game' ? row.game.id : `bye-${row.week}`)}
 		{#if row.kind === 'bye'}
-			<div class="flex items-center gap-4 border-b border-border bg-muted/40 px-4 py-2.5 text-sm">
+			<div class="flex items-center gap-4 border-b border-border py-2.5 text-sm">
 				<span class="w-9 stat text-muted-foreground">{row.week}</span>
-				<span class="font-display text-lg font-bold tracking-widest text-muted-foreground uppercase"
-					>Bye</span
-				>
+				<span class="text-muted-foreground">Bye</span>
 			</div>
 		{:else}
 			{@const game = row.game}
 			{@const { us, them, home } = view(game)}
 			<!-- The whole row opens the game, apart from the opponent, which opens their page. -->
 			<div
-				class="relative flex items-center gap-4 border-b border-border px-4 py-2.5 text-sm transition-colors last:border-0 has-[a[data-game]:hover]:bg-accent/60"
+				class="hover-row relative flex items-center gap-4 border-b border-border py-3 text-sm transition-colors"
 			>
 				<a
 					href={resolve('/games/[id=id]', { id: game.id })}

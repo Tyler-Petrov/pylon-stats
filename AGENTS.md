@@ -5,6 +5,7 @@ NFL scores, standings, schedules, depth charts and stats at https://pylon.tpetro
 - All ESPN-specific parsing stays in `src/lib/server/espn.ts`; components only see `src/lib/types.ts`. It caches responses in memory (20s for scores, up to 6h for the team list) and serves the last good response when ESPN fails.
 - Pages and components `await` remote functions from `src/lib/nfl.remote.ts`. Wrap anything that loads separately from its page in a `<svelte:boundary>` with a `pending` snippet.
 - Pages render in the browser (`ssr = false`) so kickoff times use the visitor's time zone.
+- What a page shows beyond its path (the Players table's category, sort and season) is in its address. `src/lib/query.ts` reads it, for the route's `load` and the page alike.
 - Links go through `resolve()` (lint enforces it). Route params use the matchers in `src/params.ts`.
 - Dark only. Palette and fonts live in `src/routes/layout.css`; pages tint themselves with `--team`.
 - Open pages move onto a new release by themselves (root layout, `version` in `vite.config.ts`).

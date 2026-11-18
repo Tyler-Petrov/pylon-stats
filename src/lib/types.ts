@@ -132,9 +132,27 @@ export type StatLine = {
 	values: string[];
 	/** The game a game log row is for. */
 	gameId?: string;
+	/** That game in parts, for a log to line up: "Wk 10", "@" CAR, "W" or "L" or "T", "20-17 OT". */
+	game?: {
+		when: string;
+		at: '@' | 'vs';
+		team: Pick<Team, 'id' | 'abbreviation' | 'logo'>;
+		result: string;
+		score: string;
+	};
+	/** The row adds up the ones above it: a career, a season. */
+	total?: boolean;
 };
 
-export type StatTable = { title: string; labels: string[]; rows: StatLine[] };
+export type StatTable = {
+	title: string;
+	labels: string[];
+	/** What the columns fall under ("Passing" over the first eleven), when a table mixes kinds of stat. */
+	groups?: { label: string; span: number; kind?: string }[];
+	/** The columns worth picking out, one flag a column: a passer's yards and touchdowns. */
+	strong?: boolean[];
+	rows: StatLine[];
+};
 
 export type PlayerDetail = {
 	id: string;
@@ -145,8 +163,79 @@ export type PlayerDetail = {
 	team: Team | null;
 	status: string | null;
 	facts: { label: string; value: string }[];
-	season: StatTable | null;
-	gameLog: StatTable | null;
+};
+
+/** One kind of stat ("Passing", "Rushing") with a number under each of its columns. */
+export type StatGroup = {
+	/** ESPN's name for the kind: "passing". */
+	key: string;
+	title: string;
+	/**
+	 * "YDS", and what it stands for: "Passing Yards". A headline column is one of the few that say the most,
+	 * with a name for it in words ("Yards").
+	 */
+	columns: { short: string; long: string; headline?: string }[];
+	values: string[];
+};
+
+/**
+ * A player's regular seasons and career, by kind of stat. Games played is left out of the columns, since it's
+ * the same in every kind: it's `games`.
+ */
+export type CareerStats = {
+	/** The seasons the player has numbers in, latest first, with the teams he had them for. */
+	seasons: { year: number; teams: string[]; games: string | null }[];
+	/** Games played over the career. */
+	games: string | null;
+	categories: {
+		key: string;
+		title: string;
+		columns: StatGroup['columns'];
+		/** The seasons with something in this kind of stat. One split between two teams is the two together. */
+		seasons: { year: number; values: string[] }[];
+		/** The career, or null with nothing in it. */
+		totals: string[] | null;
+	}[];
+};
+
+/** A player's games in one season: a table for the regular season and one for the playoffs, latest first. */
+export type GameLog = {
+	season: number;
+	/** Every season the player has games in, latest first. */
+	seasons: number[];
+	tables: StatTable[];
+};
+
+/** A column of a leaders table. `sortable` is whether ESPN can order the table by it. */
+export type StatColumn = { key: string; short: string; long: string; sortable: boolean };
+
+export type LeaderCategory = { key: string; label: string };
+
+/** The league's players in one kind of stat for one regular season, best first by the sorted column. */
+export type Leaders = {
+	category: string;
+	categories: LeaderCategory[];
+	season: number;
+	sort: string;
+	columns: StatColumn[];
+	rows: {
+		rank: number;
+		player: { id: string; name: string; position: string | null; headshot: string | null };
+		team: Team | null;
+		values: string[];
+	}[];
+};
+
+export type SearchResults = {
+	teams: Team[];
+	players: {
+		id: string;
+		name: string;
+		position: string | null;
+		jersey: string | null;
+		headshot: string | null;
+		team: Team | null;
+	}[];
 };
 
 /** One category of a game's box score for one team, "Passing" or "Defense": a row per player. */
@@ -178,4 +267,34 @@ export type GameDetail = Game & {
 		home: number;
 	}[];
 	attendance: number | null;
+};
+
+export type Play = {
+	id: string;
+	period: number;
+	clock: string;
+	/** "1st & 10 at SF 28". Null for a kickoff, a timeout, the end of a quarter. */
+	down: string | null;
+	text: string;
+	scoring: boolean;
+};
+
+/** One possession, and every play in it in the order they happened. */
+export type Drive = {
+	id: string;
+	team: Team | null;
+	/** The quarter it started in. */
+	period: number;
+	/** "Touchdown", "Punt". Null while the drive is still going. */
+	result: string | null;
+	/** Whether anyone scored on it. */
+	scored: boolean;
+	/** "8 plays, 72 yards, 4:51" */
+	summary: string;
+	/**
+	 * The score once the drive was over, and the side that raised it: not always the one with the ball (a
+	 * pick-six, a safety). Null when ESPN's plays don't add up to the game's final score, as on some old games.
+	 */
+	score: { away: number; home: number; by: 'away' | 'home' | null } | null;
+	plays: Play[];
 };

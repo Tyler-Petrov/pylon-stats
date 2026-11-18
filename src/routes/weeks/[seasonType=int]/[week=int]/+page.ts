@@ -1,7 +1,10 @@
 import { getScoreboard } from '#lib/nfl.remote.js';
+import { season } from '#lib/season.svelte.js';
 import { warm } from '#lib/warm.js';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => ({
-	queries: await warm(getScoreboard({ week: params.week, seasonType: params.seasonType }))
+	queries: await warm(
+		getScoreboard({ week: params.week, seasonType: params.seasonType, season: season.picked })
+	)
 });

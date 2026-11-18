@@ -24,8 +24,7 @@
 		>
 			<span class="block truncate font-medium">
 				{s.team.location}
-				<span class="font-display text-lg font-bold tracking-wide uppercase">{s.team.nickname}</span
-				>
+				<span class="font-display text-lg font-bold">{s.team.nickname}</span>
 			</span>
 			{#if s.record}
 				<span class="stat text-xs text-muted-foreground">{s.record}</span>
@@ -61,8 +60,9 @@
 <!-- The whole card opens the game: the status link stretches over it, and the team names sit above it. -->
 <article
 	class={cn(
-		'relative flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors duration-500 has-[a[data-game]:hover]:bg-accent/60',
-		live ? 'border-pylon/60' : 'border-border'
+		// No box: a faint line above each game, in the orange while it's on.
+		'hover-row relative flex flex-col gap-3 border-t py-4 transition-colors duration-500',
+		live ? 'border-pylon/70' : 'border-border'
 	)}
 >
 	<header class="flex items-center justify-between gap-2 text-xs">
@@ -74,10 +74,10 @@
 				: live
 					? 'live box score'
 					: 'preview'}"
-			class="absolute inset-0 rounded-xl"
+			class="absolute inset-0"
 		></a>
 		{#if live}
-			<span class="flex items-center gap-1.5 font-semibold text-pylon uppercase">
+			<span class="flex items-center gap-1.5 font-semibold text-pylon">
 				<span class="relative flex size-2">
 					<span
 						class="absolute inline-flex size-full rounded-full bg-pylon opacity-75 motion-safe:animate-ping"
@@ -87,7 +87,7 @@
 				{game.detail}
 			</span>
 		{:else if final}
-			<span class="font-semibold text-muted-foreground uppercase">{game.detail}</span>
+			<span class="font-semibold text-muted-foreground">{game.detail}</span>
 		{:else}
 			<!-- The scoreboard groups games by day, so the card only needs the time. -->
 			<span class="font-semibold">{kickoff(game.date)}</span>

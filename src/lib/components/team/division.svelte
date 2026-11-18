@@ -37,11 +37,8 @@
 </script>
 
 {#if division}
-	<section
-		aria-labelledby="division-standings"
-		class="overflow-hidden rounded-xl border border-border bg-card"
-	>
-		<header class="flex items-baseline justify-between gap-3 px-4 pt-3 pb-2">
+	<section aria-labelledby="division-standings">
+		<header class="flex items-baseline justify-between gap-3 px-2 pb-2">
 			<h2 id="division-standings" class="text-lg">{division.name}</h2>
 			<a
 				href={resolve('/standings')}
@@ -53,7 +50,7 @@
 		<div
 			aria-hidden="true"
 			class={cn(
-				'grid gap-2 border-b border-border px-4 pb-1.5 text-xs text-muted-foreground',
+				'grid gap-2 border-b border-border px-2 pb-1.5 text-xs text-muted-foreground',
 				columns
 			)}
 		>
@@ -73,9 +70,9 @@
 						aria-label={label(row, i)}
 						data-sveltekit-reset={current ? 'false' : undefined}
 						class={cn(
-							'relative grid items-center gap-2 px-4 py-2 text-sm -outline-offset-2 transition-colors',
+							'relative grid items-center gap-2 px-2 py-2 text-sm -outline-offset-2 transition-colors',
 							columns,
-							!current && 'hover:bg-accent'
+							!current && 'hover:bg-foreground/[0.03]'
 						)}
 					>
 						<!-- Moving to a rival's page, the highlight slides to their row (lib/view-transitions.ts). -->
