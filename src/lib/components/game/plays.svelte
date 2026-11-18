@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteMap } from 'svelte/reactivity';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { getPlays } from '#lib/nfl.remote.js';
 	import { period } from '#lib/format.js';
@@ -8,10 +9,13 @@
 
 	let { game }: { game: GameDetail } = $props();
 
-	const query = $derived(getPlays(game.id));
-	const drives = $derived(await query);
-
+	// Through primitives: the page refreshes `game` every 30 seconds while it's on, and a new object that says
+	// the same thing mustn't start the query, or the timer below, over again.
+	const id = $derived(game.id);
 	const live = $derived(game.state === 'in');
+
+	const query = $derived(getPlays(id));
+	const drives = $derived(await query);
 
 	// While the game is on, keep up with it, as the page does with the score. The server caches ESPN for 20
 	// seconds, and it's the response the score comes from, so this asks ESPN for nothing more.
@@ -24,6 +28,15 @@
 
 	// A drive goes under the quarter it started in, as a scoring play does under the one it happened in.
 	const quarters = $derived([...Map.groupBy(drives, (drive) => drive.period)]);
+
+	// The drive being played starts open and closes once the next one begins. A drive the reader opened or
+	// closed themselves stays how they left it: a refresh would otherwise put it back.
+	const playing = $derived(live ? drives.at(-1)?.id : undefined);
+	const chosen = new SvelteMap<string, boolean>();
+	function toggled(drive: string, open: boolean) {
+		if (open === (drive === playing)) chosen.delete(drive);
+		else chosen.set(drive, open);
+	}
 </script>
 
 <section aria-labelledby="plays">
@@ -37,10 +50,10 @@
 			</h3>
 			{#each list as drive (drive.id)}
 				{@const awayHasBall = drive.team?.id === game.away.team.id}
-				<!-- One drive: how it ended and the score after it. Open it for every play. The drive being played
-				     starts open. -->
+				<!-- One drive: how it ended and the score after it. Open it for every play. -->
 				<details
-					open={live && drive === drives.at(-1)}
+					open={chosen.get(drive.id) ?? drive.id === playing}
+					ontoggle={(event) => toggled(drive.id, event.currentTarget.open)}
 					class="group border-b border-border last:border-0"
 				>
 					<summary
