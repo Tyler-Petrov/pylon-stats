@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import Search from '@lucide/svelte/icons/search';
@@ -28,6 +28,8 @@
 			goto(here, { replace: true, reset: false });
 		}, wait);
 	}
+	// Leaving, by a result or a tab, before the pause is up: the search that was coming mustn't pull back here.
+	beforeNavigate(() => clearTimeout(timer));
 	$effect(() => () => clearTimeout(timer));
 </script>
 
@@ -63,28 +65,31 @@
 	</form>
 
 	{#if query}
-		<!-- No `pending` here: the route's load has the results before the page shows them (+page.ts). -->
-		<svelte:boundary>
-			<Results {query} />
-			{#snippet failed(error, reset)}
-				<div class="flex flex-col items-center gap-3 py-16 text-center">
-					<p class="text-muted-foreground">
-						Couldn't search just now{error instanceof Error ? `: ${error.message}` : ''}
-					</p>
-					<!-- The route's load still holds the search that failed, so ask again before showing it again. -->
-					<button
-						type="button"
-						class="text-pylon underline-offset-4 hover:underline"
-						onclick={() => {
-							getSearchResults(query).refresh();
-							reset();
-						}}
-					>
-						Try again
-					</button>
-				</div>
-			{/snippet}
-		</svelte:boundary>
+		<!-- No `pending` here: the route's load has the results before the page shows them (+page.ts). A boundary
+		     for each search, or one that failed would stand in the way of the next. -->
+		{#key query}
+			<svelte:boundary>
+				<Results {query} />
+				{#snippet failed(error, reset)}
+					<div class="flex flex-col items-center gap-3 py-16 text-center">
+						<p class="text-muted-foreground">
+							Couldn't search just now{error instanceof Error ? `: ${error.message}` : ''}
+						</p>
+						<!-- The route's load still holds the search that failed, so ask again before showing it again. -->
+						<button
+							type="button"
+							class="text-pylon underline-offset-4 hover:underline"
+							onclick={() => {
+								getSearchResults(query).refresh();
+								reset();
+							}}
+						>
+							Try again
+						</button>
+					</div>
+				{/snippet}
+			</svelte:boundary>
+		{/key}
 	{:else}
 		<p class="py-16 text-center text-muted-foreground">
 			Type two letters or more of a team or a player's name.

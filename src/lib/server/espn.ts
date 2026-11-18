@@ -433,9 +433,11 @@ export async function plays(id: string): Promise<Drive[]> {
 	return drives.map((d) => {
 		const all: Json[] = d.plays ?? [];
 		const before = { away, home };
-		// A drive without a play yet leaves the score where the last one did.
-		away = all.at(-1)?.awayScore ?? away;
-		home = all.at(-1)?.homeScore ?? home;
+		// The score as of the drive's last score, or its last play: on old games the kickoff after a score can
+		// carry the wrong one. A drive without a play yet leaves the score where the last one did.
+		const last = all.findLast((p) => p.scoringPlay) ?? all.at(-1);
+		away = last?.awayScore ?? away;
+		home = last?.homeScore ?? home;
 		return {
 			id: String(d.id),
 			team: teamsById.get(String(d.team?.id)) ?? null,
@@ -811,20 +813,26 @@ export async function career(id: string): Promise<StatTable[]> {
 		}));
 }
 
-/** The playoff rounds by ESPN's week number. Week 4 is the Pro Bowl. */
+/**
+ * The playoff rounds by ESPN's week number. The Super Bowl is week 5, with the Pro Bowl before it as week 4;
+ * through the 2008 season the Pro Bowl came after it, and the Super Bowl was week 4.
+ */
 const PLAYOFF_ROUNDS: Record<number, string> = {
 	1: 'Wild Card',
 	2: 'Divisional',
-	3: 'Conf. Champ.',
-	5: 'Super Bowl'
+	3: 'Conf. Champ.'
 };
+const playoffRound = (week: number, season: number) =>
+	week === (season <= 2008 ? 4 : 5) ? 'Super Bowl' : PLAYOFF_ROUNDS[week];
 
 /** The games of one of the player's seasons. Leave the season out for the latest one they played in. */
 export async function gameLog(id: string, season?: number): Promise<GameLog> {
 	// Kept as the tables themselves: the response is some 90 KB of links for a few hundred numbers.
-	return get(`${ATHLETES}/${id}/gamelog${season ? `?season=${season}` : ''}`, 10 * MINUTE, {
+	const url = `${ATHLETES}/${id}/gamelog${season ? `?season=${season}` : ''}`;
+	const log: GameLog = await get(url, 10 * MINUTE, {
 		trim: (data): GameLog => {
 			const seasons = data.filters?.find((f: Json) => f.name === 'season');
+			const year = Number(seasons?.value) || (season ?? 0);
 			const labels: string[] = data.labels ?? [];
 			// The columns run passing first, then rushing, and so on, with some labels ("YDS") in more than one.
 			const groups = (data.categories ?? []).map((c: Json) => ({
@@ -832,7 +840,7 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 				span: c.count
 			}));
 			return {
-				season: Number(seasons?.value) || (season ?? 0),
+				season: year,
 				seasons: (seasons?.options ?? []).map((o: Json) => Number(o.value)),
 				// A player with no stats to his name (a lineman) has games but no columns.
 				tables: labels.length
@@ -848,7 +856,8 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 											const game = data.events?.[e.eventId];
 											// A playoff game's week is its round: week 5 is the Super Bowl.
 											const when =
-												(c.splitType === '3' && PLAYOFF_ROUNDS[game?.week]) || `Wk ${game?.week}`;
+												(c.splitType === '3' && playoffRound(game?.week, year)) ||
+												`Wk ${game?.week}`;
 											const label = game
 												? `${when} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
 												: '';
@@ -862,6 +871,8 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 			};
 		}
 	});
+	// A season the player never had is as good as left out.
+	return season && !log.seasons.includes(log.season) ? gameLog(id) : log;
 }
 
 /* League leaders */
@@ -935,6 +946,7 @@ export async function leaders(category?: string, sort?: string, season?: number)
 	const config = LEADERS[key];
 	const groups = ['general', ...config.groups];
 	let sorted = sort && groups.includes(sort.split('.')[0]) ? sort : config.sort;
+	const asked = season && season >= FIRST_SEASON ? season : undefined;
 
 	const table = (by: string) => {
 		const params = new URLSearchParams({
@@ -943,14 +955,18 @@ export async function leaders(category?: string, sort?: string, season?: number)
 			seasontype: '2',
 			limit: String(LEADERS_SHOWN)
 		});
-		if (season) params.set('season', String(season));
+		if (asked) params.set('season', String(asked));
 		// Kept as the table itself: fifty leaders come as 750 KB of JSON, nearly all of it logos and links.
 		return get(`${COMMON}/sports/football/nfl/statistics/byathlete?${params}`, 10 * MINUTE, {
 			trim: (data) => {
 				const columns = groups.flatMap((group) => {
 					const c = data.categories?.find((c: Json) => c.name === group.toLowerCase());
 					// Of the general numbers, only games played belongs in every table.
-					const names: string[] = group === 'general' ? ['gamesPlayed'] : (c?.names ?? []);
+					// And of ESPN's two "QBR" columns, the first.
+					const names: string[] =
+						group === 'general'
+							? ['gamesPlayed']
+							: (c?.names ?? []).filter((name: string) => name !== 'adjQBR');
 					return names.flatMap((name) => {
 						const i: number = c?.names?.indexOf(name) ?? -1;
 						if (i === -1) return [];
@@ -994,13 +1010,15 @@ export async function leaders(category?: string, sort?: string, season?: number)
 		}),
 		teams()
 	]);
+	// ESPN only names the season it was asked for when it has something for it. One it has nothing for, or
+	// from before the picker starts, is as good as left out.
+	if (asked && !data.season) return leaders(key, sorted);
 	const byId = new Map(all.map((t) => [t.id, t]));
 	const current: number = data.current ?? new Date().getFullYear();
 	return {
 		category: key,
 		categories: Object.entries(LEADERS).map(([key, { label }]) => ({ key, label })),
-		// ESPN only names the season it was asked for when it has something for it.
-		season: data.season ?? season ?? current,
+		season: data.season ?? current,
 		seasons: Array.from({ length: Math.max(1, current - FIRST_SEASON + 1) }, (_, i) => current - i),
 		sort: sorted,
 		columns: data.columns,
