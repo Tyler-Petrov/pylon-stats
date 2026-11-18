@@ -126,7 +126,7 @@
 											<td class="p-0!">
 												<a
 													href={resolve('/teams/[id=id]', { id: row.team.id })}
-													class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:gap-2.5 @min-[30rem]:px-4"
+													class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:gap-2 @min-[30rem]:px-4 @min-[54rem]:gap-2.5"
 												>
 													<TeamLogo team={row.team} class="size-6 shrink-0" />
 													<!-- The full name where there's room for it, the nickname in narrower tables, the abbreviation on phones. -->
