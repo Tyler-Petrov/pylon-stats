@@ -24,7 +24,7 @@
 		]
 			.filter(Boolean)
 			.join('&');
-		return query ? resolve(`/leaders?${query}`) : resolve('/leaders');
+		return query ? resolve(`/players?${query}`) : resolve('/players');
 	}
 
 	// The selected category's pill slides along the strip to the next one picked.
@@ -32,8 +32,8 @@
 </script>
 
 <PageHeader
-	title="Leaders"
-	description="{leaders.season} regular season · top {leaders.rows.length}"
+	title="Players"
+	description="League leaders · {leaders.season} regular season · top {leaders.rows.length}"
 >
 	{#snippet actions()}
 		<label class="flex items-center gap-2 text-sm text-muted-foreground">

@@ -5,7 +5,7 @@
 	import Trophy from '@lucide/svelte/icons/trophy';
 	import Shield from '@lucide/svelte/icons/shield';
 	import ListOrdered from '@lucide/svelte/icons/list-ordered';
-	import ChartColumn from '@lucide/svelte/icons/chart-no-axes-column';
+	import Users from '@lucide/svelte/icons/users';
 	import Search from '@lucide/svelte/icons/search';
 	import { cn } from '#lib/utils.js';
 	import { indicator } from '#lib/motion.js';
@@ -23,7 +23,7 @@
 		// Hidden: Standings lists every team too, so this page is out of the nav for now. The route still works.
 		{ href: resolve('/teams'), label: 'Teams', icon: Shield, hidden: true },
 		{ href: resolve('/standings'), label: 'Standings', icon: ListOrdered },
-		{ href: resolve('/leaders'), label: 'Leaders', icon: ChartColumn },
+		{ href: resolve('/players'), label: 'Players', icon: Users },
 		{ href: resolve('/search'), label: 'Search', icon: Search }
 	].filter((tab) => !tab.hidden);
 
@@ -33,11 +33,9 @@
 	function isActive(href: string) {
 		// Any week's scores belong under Scores.
 		if (href === resolve('/')) return path === href || path.startsWith('/weeks');
-		// A player's page belongs under Teams, where you find players.
-		if (href === resolve('/teams')) return path.startsWith(href) || path.startsWith('/players');
-		// With Teams hidden, team and player pages belong under Standings, where you find teams.
-		if (href === resolve('/standings'))
-			return path.startsWith(href) || path.startsWith('/teams') || path.startsWith('/players');
+		// With Teams hidden, a team's page belongs under Standings, where you find teams. A player's page is
+		// under Players, with the league's leaders.
+		if (href === resolve('/standings')) return path.startsWith(href) || path.startsWith('/teams');
 		return path.startsWith(href);
 	}
 </script>
