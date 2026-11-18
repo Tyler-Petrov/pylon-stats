@@ -2,101 +2,185 @@
 	import { resolve } from '$app/paths';
 	import { getStandings } from '#lib/nfl.remote.js';
 	import { signed } from '#lib/format.js';
+	import { fadeIn } from '#lib/motion.js';
 	import { cn } from '#lib/utils.js';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import TeamLogo from '#lib/components/team-logo.svelte';
 
 	const conferences = $derived(await getStandings());
 
+	const fullNames: Record<string, string> = {
+		AFC: 'American Football Conference',
+		NFC: 'National Football Conference'
+	};
+
+	/* Every division's table gets the same widths (`table-fixed`), so the columns line up down the page and the
+	   team column takes what's left. Widths and which columns show go by the width of the tables, not the
+	   window, since the sidebar takes a share of it on larger screens: phones (under 30rem) get the core stats,
+	   points come in at 40rem, and the home, road and division records at 42rem. Below 54rem it's all a little
+	   tighter. From the md breakpoint every column shows, as it always has, and a table too narrow for them all
+	   scrolls sideways. */
+	const narrow = 'w-7 @min-[30rem]:w-8 @min-[54rem]:w-9';
+	const medium = 'w-11 @min-[30rem]:w-12 @min-[54rem]:w-14';
+	const points = 'hidden @min-[40rem]:table-cell md:table-cell';
+	const splits = 'hidden @min-[42rem]:table-cell md:table-cell';
 	const columns = [
-		{ label: 'W', title: 'Wins' },
-		{ label: 'L', title: 'Losses' },
-		{ label: 'T', title: 'Ties' },
-		{ label: 'PCT', title: 'Win percentage' },
-		{ label: 'PF', title: 'Points for', wide: true },
-		{ label: 'PA', title: 'Points against', wide: true },
-		{ label: 'DIFF', title: 'Point differential' },
-		{ label: 'HOME', title: 'Home record', wide: true },
-		{ label: 'AWAY', title: 'Road record', wide: true },
-		{ label: 'DIV', title: 'Division record', wide: true },
-		{ label: 'STRK', title: 'Streak' }
+		{ label: 'W', title: 'Wins', width: narrow },
+		{ label: 'L', title: 'Losses', width: narrow },
+		{ label: 'T', title: 'Ties', width: narrow },
+		{ label: 'PCT', title: 'Win percentage', width: medium },
+		{ label: 'PF', title: 'Points for', width: 'w-11 @min-[54rem]:w-14', show: points },
+		{ label: 'PA', title: 'Points against', width: 'w-11 @min-[54rem]:w-14', show: points },
+		{ label: 'DIFF', title: 'Point differential', width: medium },
+		{ label: 'HOME', title: 'Home record', width: 'w-14 @min-[54rem]:w-18', show: splits },
+		{ label: 'AWAY', title: 'Road record', width: 'w-14 @min-[54rem]:w-18', show: splits },
+		{ label: 'DIV', title: 'Division record', width: 'w-14 @min-[54rem]:w-18', show: splits },
+		{ label: 'STRK', title: 'Streak', width: 'w-10 @min-[30rem]:w-12 @min-[54rem]:w-16' }
 	];
 </script>
 
 <PageHeader
 	title="Standings"
-	description="Seeds are where teams would land if the season ended today"
+	description="Seeds 1–7 would make the playoffs if the season ended today"
 />
 
-<div class="page-column grid gap-12">
+<div class="page-column grid gap-10 pb-12 md:gap-12">
 	{#each conferences as conference (conference.name)}
-		<section>
-			<h2 class="mb-4 text-3xl text-pylon">{conference.name}</h2>
-			<div class="grid gap-6">
+		<!-- Each conference sits on a wash of its own colour, with its shield darkened behind the title band. The
+		     NFC's navy is much darker than the AFC's red, so its shield is dimmed less to read the same. -->
+		{@const nfc = conference.name === 'NFC'}
+		<section
+			style:--conference={conference.color}
+			aria-labelledby="conference-{conference.name}"
+			class="@container/conference relative isolate -mx-2 overflow-hidden rounded-2xl border border-[color-mix(in_oklab,var(--conference)_25%,var(--border))] bg-[color-mix(in_oklab,var(--conference)_6%,var(--background))] pb-2 sm:mx-0 sm:rounded-3xl sm:pb-3"
+		>
+			<div
+				class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 overflow-hidden bg-linear-to-b from-[color-mix(in_oklab,var(--conference)_24%,var(--background))] to-transparent mask-[linear-gradient(to_bottom,black_45%,transparent)] md:h-96"
+			>
+				<img
+					src={conference.logo}
+					alt=""
+					aria-hidden="true"
+					draggable="false"
+					decoding="async"
+					{@attach fadeIn}
+					class={cn(
+						'absolute -top-4 -right-6 w-48 max-w-none rotate-8 sm:w-72 md:-top-6 md:right-4 md:w-96',
+						nfc ? 'opacity-55 brightness-[0.5] saturate-[0.9]' : 'opacity-45 brightness-[0.38]'
+					)}
+				/>
+				<!-- Keeps the title clear of the shield on narrow screens. -->
+				<div
+					class="absolute inset-0 bg-linear-to-r from-background/60 via-background/20 to-transparent"
+				></div>
+			</div>
+
+			<!-- Padded like the team column, so the title lines up with the logos below it. -->
+			<header
+				class="px-2.5 pt-6 pb-4 md:pt-8 md:pb-6 @min-[30rem]/conference:px-3 @min-[54rem]/conference:px-4"
+			>
+				<h2 id="conference-{conference.name}" class="text-6xl leading-none md:text-7xl">
+					<span
+						class="mb-0.5 block font-sans text-[0.7rem] leading-tight font-medium tracking-[0.25em] text-foreground/65"
+					>
+						{fullNames[conference.name] ?? conference.name}
+					</span>
+					{conference.name}
+				</h2>
+			</header>
+
+			<div class="grid gap-8 md:gap-10">
 				{#each conference.divisions as division (division.name)}
-					<div class="overflow-x-auto rounded-xl border border-border bg-card">
-						<table class="w-full text-sm">
-							<thead>
-								<tr class="border-b border-border text-xs text-muted-foreground">
-									<th
-										class="px-4 py-2.5 text-left font-display text-base font-bold tracking-wide text-foreground uppercase"
-									>
-										{division.name}
-									</th>
-									{#each columns as column (column.label)}
-										<th
-											title={column.title}
-											class={cn(
-												'px-2 py-2.5 text-right font-medium',
-												column.wide && 'hidden md:table-cell'
-											)}
+					<div class="relative min-w-0">
+						<!-- Blurs the shield behind the table so its rows stay legible, fading out above the division name. -->
+						<div
+							aria-hidden="true"
+							class="pointer-events-none absolute inset-0 bg-background/25 mask-[linear-gradient(to_bottom,transparent,black_2.5rem)] backdrop-blur-md"
+						></div>
+						<div class="relative overflow-x-auto">
+							<!-- The container is the table's own width, so a table that scrolls sizes itself for the width it
+						     scrolls to. -->
+							<div class="@container min-w-[19.25rem] md:min-w-[41.75rem]">
+								<table class="w-full table-fixed text-sm">
+									<thead>
+										<tr
+											class="border-b border-[color-mix(in_oklab,var(--conference)_50%,var(--border))] text-xs text-muted-foreground"
 										>
-											{column.label}
-										</th>
-									{/each}
-								</tr>
-							</thead>
-							<tbody>
-								{#each division.teams as row, i (row.team.id)}
-									<tr class={cn('border-b border-border last:border-0', i === 0 && 'bg-turf/5')}>
-										<td class="px-4 py-2">
-											<a
-												href={resolve('/teams/[id=id]', { id: row.team.id })}
-												class="flex items-center gap-2.5 hover:underline"
+											<th
+												class="truncate px-2.5 py-2 text-left font-display text-lg font-bold tracking-wide text-foreground uppercase @min-[30rem]:px-3 @min-[54rem]:px-4"
 											>
-												<TeamLogo team={row.team} class="size-6" />
-												<span class="hidden sm:inline">{row.team.name}</span>
-												<span class="sm:hidden">{row.team.abbreviation}</span>
-												{#if row.seed}
-													<span class="stat text-xs text-muted-foreground" title="Playoff seed">
-														{row.seed}
-													</span>
-												{/if}
-											</a>
-										</td>
-										<td class="px-2 text-right stat">{row.wins}</td>
-										<td class="px-2 text-right stat">{row.losses}</td>
-										<td class="px-2 text-right stat">{row.ties}</td>
-										<td class="px-2 text-right stat">{row.pct}</td>
-										<td class="hidden px-2 text-right stat md:table-cell">{row.pointsFor}</td>
-										<td class="hidden px-2 text-right stat md:table-cell">{row.pointsAgainst}</td>
-										<td
-											class={cn(
-												'px-2 text-right stat',
-												row.diff > 0 && 'text-turf',
-												row.diff < 0 && 'text-flag'
-											)}
-										>
-											{signed(row.diff)}
-										</td>
-										<td class="hidden px-2 text-right stat md:table-cell">{row.home}</td>
-										<td class="hidden px-2 text-right stat md:table-cell">{row.road}</td>
-										<td class="hidden px-2 text-right stat md:table-cell">{row.division}</td>
-										<td class="px-2 pr-4 text-right stat">{row.streak}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
+												{division.name}
+											</th>
+											{#each columns as column (column.label)}
+												<th
+													title={column.title}
+													class={cn(
+														'px-1 py-2 text-right font-medium last:pr-2.5 @min-[30rem]:px-1.5 @min-[30rem]:last:pr-4 @min-[54rem]:px-2',
+														column.width,
+														column.show
+													)}
+												>
+													{column.label}
+												</th>
+											{/each}
+										</tr>
+									</thead>
+									<tbody>
+										{#each division.teams as row (row.team.id)}
+											{@const playoff = row.seed !== null && row.seed <= 7}
+											<tr
+												style:--team={row.team.color}
+												class="border-b border-border transition-colors last:border-0 hover:bg-[color-mix(in_oklab,var(--team)_14%,transparent)] [&>td]:px-1 [&>td]:text-right [&>td]:stat @min-[30rem]:[&>td]:px-1.5 @min-[54rem]:[&>td]:px-2 [&>td:last-child]:pr-2.5 @min-[30rem]:[&>td:last-child]:pr-4"
+											>
+												<td class="p-0!">
+													<a
+														href={resolve('/teams/[id=id]', { id: row.team.id })}
+														class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:px-3 @min-[54rem]:gap-2.5 @min-[54rem]:px-4"
+													>
+														<TeamLogo team={row.team} class="size-6 shrink-0" />
+														<!-- The full name where there's room for it, the nickname in narrower tables, the abbreviation on phones. -->
+														<span class="hidden truncate @min-[55rem]:inline">{row.team.name}</span>
+														<span class="hidden truncate @min-[30rem]:inline @min-[55rem]:hidden"
+															>{row.team.nickname}</span
+														>
+														<span class="@min-[30rem]:hidden">{row.team.abbreviation}</span>
+														<!-- Past phone widths every seed reserves the playoff chip's padding, so a team moving into the
+													     playoffs (a one-digit seed) never needs more room than its row already has. Phones skip that
+													     for lack of room. -->
+														{#if row.seed}
+															<span
+																title={playoff ? `Playoff seed ${row.seed}` : `Seed ${row.seed}`}
+																class={cn(
+																	'shrink-0 stat text-xs',
+																	playoff
+																		? 'rounded bg-turf/15 px-1.5 text-turf'
+																		: 'text-muted-foreground @min-[30rem]:px-1.5'
+																)}
+															>
+																{row.seed}
+															</span>
+														{/if}
+													</a>
+												</td>
+												<td>{row.wins}</td>
+												<td>{row.losses}</td>
+												<td>{row.ties}</td>
+												<td>{row.pct}</td>
+												<td class={points}>{row.pointsFor}</td>
+												<td class={points}>{row.pointsAgainst}</td>
+												<td class={cn(row.diff > 0 && 'text-turf', row.diff < 0 && 'text-flag')}>
+													{signed(row.diff)}
+												</td>
+												<td class={splits}>{row.home}</td>
+												<td class={splits}>{row.road}</td>
+												<td class={splits}>{row.division}</td>
+												<td>{row.streak}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</div>
 					</div>
 				{/each}
 			</div>
