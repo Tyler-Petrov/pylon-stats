@@ -19,9 +19,16 @@
 
 	// While the game is on, keep up with it, as the page does with the score. The server caches ESPN for 20
 	// seconds, and it's the response the score comes from, so this asks ESPN for nothing more.
+	let watching: string | undefined;
 	$effect(() => {
-		if (!live) return;
 		const current = query;
+		if (!live) {
+			// The final whistle: one more look, for the plays since the timer's last.
+			if (watching === id) current.refresh();
+			watching = undefined;
+			return;
+		}
+		watching = id;
 		const timer = setInterval(() => current.refresh(), 30_000);
 		return () => clearInterval(timer);
 	});
@@ -49,7 +56,6 @@
 				{period(quarter, true)}
 			</h3>
 			{#each list as drive (drive.id)}
-				{@const awayHasBall = drive.team?.id === game.away.team.id}
 				<!-- One drive: how it ended and the score after it. Open it for every play. -->
 				<details
 					open={chosen.get(drive.id) ?? drive.id === playing}
@@ -72,9 +78,9 @@
 						</span>
 						<!-- Away–home, like the header. A drive that scored picks out the side that did. -->
 						<span class="shrink-0 stat text-muted-foreground">
-							<span class={drive.scored && awayHasBall ? 'font-semibold text-foreground' : ''}
+							<span class={drive.scored === 'away' ? 'font-semibold text-foreground' : ''}
 								>{drive.away}</span
-							>–<span class={drive.scored && !awayHasBall ? 'font-semibold text-foreground' : ''}
+							>–<span class={drive.scored === 'home' ? 'font-semibold text-foreground' : ''}
 								>{drive.home}</span
 							>
 						</span>

@@ -9,7 +9,7 @@ type Address = { searchParams: { get(name: string): string | null } };
 export const SEASONS = { min: 1920, max: 2100 };
 
 /** "passing.passingYards": a stat group and a stat in it, as the columns of a leaders table name them. */
-export const SORT = /^[A-Za-z]+\.[A-Za-z0-9_]+$/;
+export const SORT = /^[A-Za-z]{1,30}\.[A-Za-z0-9_]{1,40}$/;
 
 export function seasonOf(url: Address) {
 	const season = Number(url.searchParams.get('season'));

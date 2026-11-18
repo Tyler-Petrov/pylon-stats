@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import Search from '@lucide/svelte/icons/search';
@@ -11,6 +11,12 @@
 	// still there. The box itself is ahead of it by a pause in the typing.
 	let text = $state(page.url.searchParams.get('q') ?? '');
 	const query = $derived(searchOf(page.url));
+
+	// Back, forward and the Search tab change the address under a page that's already here, and the box goes
+	// with it. Not after the page's own `goto` below: by then the typing may have moved on.
+	afterNavigate(({ type }) => {
+		if (type !== 'goto') text = page.url.searchParams.get('q') ?? '';
+	});
 
 	let timer: ReturnType<typeof setTimeout>;
 	function search(wait: number) {

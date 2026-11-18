@@ -247,7 +247,8 @@ export type Drive = {
 	period: number;
 	/** "Touchdown", "Punt". Null while the drive is still going. */
 	result: string | null;
-	scored: boolean;
+	/** The side whose score the drive raised. Not always the one with the ball: a pick-six, a safety. */
+	scored: 'away' | 'home' | null;
 	/** "8 plays, 72 yards, 4:51" */
 	summary: string;
 	/** The score once the drive was over. */
