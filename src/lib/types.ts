@@ -247,12 +247,14 @@ export type Drive = {
 	period: number;
 	/** "Touchdown", "Punt". Null while the drive is still going. */
 	result: string | null;
-	/** The side whose score the drive raised. Not always the one with the ball: a pick-six, a safety. */
-	scored: 'away' | 'home' | null;
+	/** Whether anyone scored on it. */
+	scored: boolean;
 	/** "8 plays, 72 yards, 4:51" */
 	summary: string;
-	/** The score once the drive was over. */
-	away: number;
-	home: number;
+	/**
+	 * The score once the drive was over, and the side that raised it: not always the one with the ball (a
+	 * pick-six, a safety). Null when ESPN's plays don't add up to the game's final score, as on some old games.
+	 */
+	score: { away: number; home: number; by: 'away' | 'home' | null } | null;
 	plays: Play[];
 };

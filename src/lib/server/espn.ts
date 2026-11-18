@@ -420,11 +420,18 @@ export async function game(id: string): Promise<GameDetail> {
 /** ESPN's play types for an extra point and a two-point pass or run that were good. */
 const CONVERSIONS = ['61', '15', '16'];
 
+/** Whether a drive that began at one score could have ended at another: one side up by no more than a touchdown and two, the other where it was. */
+function follows([away, home]: number[], [toAway, toHome]: number[]) {
+	const up = (from: number, to: number) => to > from && to - from <= 8;
+	return (toAway === away && up(home, toHome)) || (toHome === home && up(away, toAway));
+}
+
 /** Every drive of a game, first to last. It reads the summary `game` does, so it costs ESPN nothing more. */
 export async function plays(id: string): Promise<Drive[]> {
 	const data = await get(`${SITE}/summary?event=${id}`, 20 * SECOND);
+	const competition = data.header.competitions[0];
 	const teamsById = new Map<string, Team>(
-		data.header.competitions[0].competitors.map((c: Json) => [String(c.team.id), mapTeam(c.team)])
+		competition.competitors.map((c: Json) => [String(c.team.id), mapTeam(c.team)])
 	);
 	// While a game is on, the drive in progress comes on its own, and sometimes among the finished ones too.
 	const drives: Json[] = [...(data.drives?.previous ?? [])];
@@ -438,27 +445,52 @@ export async function plays(id: string): Promise<Drive[]> {
 			lists[i - 1].push(list.shift());
 	});
 
-	let away = 0;
-	let home = 0;
+	/*
+	 * The score after each drive. Every play carries one, and ESPN's are often a score early or late around the
+	 * scoring play itself, more so the older the game. So only a drive that scored moves the score, and it moves
+	 * to the first of these that could follow from the score before it: the scoring play's, the next drive's
+	 * first play's (the game's own score after the last drive), the drive's last play's.
+	 */
+	const stamp = (p?: Json) => {
+		const at = [Number(p?.awayScore), Number(p?.homeScore)];
+		return at.every(Number.isFinite) ? at : undefined;
+	};
+	const now = ['away', 'home'].map((side) =>
+		Number(competition.competitors.find((c: Json) => c.homeAway === side)?.score)
+	);
+	let score = [0, 0];
+	const scores = lists.map((all, i) => {
+		const scoring = stamp(all.findLast((p) => p.scoringPlay));
+		if (!scoring && !drives[i].isScore) return score;
+		const next = stamp(lists.slice(i + 1).find((list) => list.length)?.[0]) ?? now;
+		const from = score;
+		score =
+			[scoring, next, stamp(all.at(-1))].find((to) => to && follows(from, to)) ?? scoring ?? from;
+		return score;
+	});
+	// Some games before 2011 have plays without scores, or without the plays that scored. If the drives of a
+	// finished game don't arrive at its final score, no score is better than a wrong one.
+	const adds = !competition.status?.type?.completed || score.join() === now.join();
+
 	return drives.map((d, i) => {
 		const all = lists[i];
-		const before = { away, home };
-		// The score after the drive's last play. On old games one play near a score can carry a later score
-		// than was true, sometimes the scoring play and sometimes the kickoff after it: the lower of the two is
-		// right. A drive without a play yet leaves the score where the last one did.
-		const scoring = all.findLast((p) => p.scoringPlay) ?? all.at(-1);
-		away = Math.min(scoring?.awayScore ?? away, all.at(-1)?.awayScore ?? away);
-		home = Math.min(scoring?.homeScore ?? home, all.at(-1)?.homeScore ?? home);
+		const [away, home] = scores[i];
+		const [awayBefore, homeBefore] = scores[i - 1] ?? [0, 0];
 		return {
 			id: String(d.id),
 			team: teamsById.get(String(d.team?.id)) ?? null,
 			period: d.start?.period?.number ?? all[0]?.period?.number ?? 0,
 			result: d.displayResult ?? null,
-			// Whose score went up, which isn't always the side with the ball: a pick-six, a safety.
-			scored: away > before.away ? 'away' : home > before.home ? 'home' : null,
+			scored: Boolean(d.isScore),
 			summary: d.description ?? '',
-			away,
-			home,
+			score: adds
+				? {
+						away,
+						home,
+						// Whose score went up, which isn't always the side with the ball: a pick-six, a safety.
+						by: !d.isScore ? null : away > awayBefore ? 'away' : home > homeBefore ? 'home' : null
+					}
+				: null,
 			plays: all.map((p) => {
 				const down: string | undefined = p.start?.downDistanceText;
 				return {

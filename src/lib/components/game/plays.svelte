@@ -77,13 +77,15 @@
 							<span class="block truncate text-xs text-muted-foreground">{drive.summary}</span>
 						</span>
 						<!-- Away–home, like the header. A drive that scored picks out the side that did. -->
-						<span class="shrink-0 stat text-muted-foreground">
-							<span class={drive.scored === 'away' ? 'font-semibold text-foreground' : ''}
-								>{drive.away}</span
-							>–<span class={drive.scored === 'home' ? 'font-semibold text-foreground' : ''}
-								>{drive.home}</span
-							>
-						</span>
+						{#if drive.score}
+							<span class="shrink-0 stat text-muted-foreground">
+								<span class={drive.score.by === 'away' ? 'font-semibold text-foreground' : ''}
+									>{drive.score.away}</span
+								>–<span class={drive.score.by === 'home' ? 'font-semibold text-foreground' : ''}
+									>{drive.score.home}</span
+								>
+							</span>
+						{/if}
 						<ChevronDown
 							class="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
 						/>
