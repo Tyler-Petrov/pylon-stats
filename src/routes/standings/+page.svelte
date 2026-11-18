@@ -86,84 +86,88 @@
 				</h2>
 			</header>
 
-			<div class="@container grid gap-3 sm:gap-4">
+			<div class="grid gap-3 sm:gap-4">
 				{#each conference.divisions as division (division.name)}
 					<div class="overflow-x-auto rounded-xl border border-border bg-card">
-						<table class="w-full min-w-[19.25rem] table-fixed text-sm md:min-w-[41.75rem]">
-							<thead>
-								<tr
-									class="border-b border-border bg-[color-mix(in_oklab,var(--conference)_7%,var(--card))] text-xs text-muted-foreground"
-								>
-									<th
-										class="truncate px-2.5 py-2.5 text-left font-display text-base font-bold tracking-wide text-foreground uppercase @min-[30rem]:px-4"
-									>
-										{division.name}
-									</th>
-									{#each columns as column (column.label)}
-										<th
-											title={column.title}
-											class={cn(
-												'px-1 py-2.5 text-right font-medium last:pr-2.5 @min-[30rem]:px-1.5 @min-[30rem]:last:pr-4 @min-[54rem]:px-2',
-												column.width,
-												column.show
-											)}
-										>
-											{column.label}
-										</th>
-									{/each}
-								</tr>
-							</thead>
-							<tbody>
-								{#each division.teams as row (row.team.id)}
-									{@const playoff = row.seed !== null && row.seed <= 7}
+						<!-- The container is the table's own width, so a table that scrolls sizes itself for the width it
+						     scrolls to. -->
+						<div class="@container min-w-[19.25rem] md:min-w-[41.75rem]">
+							<table class="w-full table-fixed text-sm">
+								<thead>
 									<tr
-										style:--team={row.team.color}
-										class="border-b border-border transition-colors last:border-0 hover:bg-[color-mix(in_oklab,var(--team)_12%,var(--card))] [&>td]:px-1 [&>td]:text-right [&>td]:stat @min-[30rem]:[&>td]:px-1.5 @min-[54rem]:[&>td]:px-2 [&>td:last-child]:pr-2.5 @min-[30rem]:[&>td:last-child]:pr-4"
+										class="border-b border-border bg-[color-mix(in_oklab,var(--conference)_7%,var(--card))] text-xs text-muted-foreground"
 									>
-										<td class="p-0!">
-											<a
-												href={resolve('/teams/[id=id]', { id: row.team.id })}
-												class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:gap-2.5 @min-[30rem]:px-4"
+										<th
+											class="truncate px-2.5 py-2.5 text-left font-display text-base font-bold tracking-wide text-foreground uppercase @min-[30rem]:px-4"
+										>
+											{division.name}
+										</th>
+										{#each columns as column (column.label)}
+											<th
+												title={column.title}
+												class={cn(
+													'px-1 py-2.5 text-right font-medium last:pr-2.5 @min-[30rem]:px-1.5 @min-[30rem]:last:pr-4 @min-[54rem]:px-2',
+													column.width,
+													column.show
+												)}
 											>
-												<TeamLogo team={row.team} class="size-6 shrink-0" />
-												<!-- The full name where there's room for it, the nickname in narrower tables, the abbreviation on phones. -->
-												<span class="hidden truncate @min-[54rem]:inline">{row.team.name}</span>
-												<span class="hidden truncate @min-[30rem]:inline @min-[54rem]:hidden"
-													>{row.team.nickname}</span
-												>
-												<span class="@min-[30rem]:hidden">{row.team.abbreviation}</span>
-												{#if row.seed}
-													<span
-														title={playoff ? `Playoff seed ${row.seed}` : `Seed ${row.seed}`}
-														class={cn(
-															'shrink-0 stat text-xs',
-															playoff
-																? 'rounded bg-turf/15 px-1.5 text-turf'
-																: 'text-muted-foreground'
-														)}
-													>
-														{row.seed}
-													</span>
-												{/if}
-											</a>
-										</td>
-										<td>{row.wins}</td>
-										<td>{row.losses}</td>
-										<td>{row.ties}</td>
-										<td>{row.pct}</td>
-										<td class={points}>{row.pointsFor}</td>
-										<td class={points}>{row.pointsAgainst}</td>
-										<td class={cn(row.diff > 0 && 'text-turf', row.diff < 0 && 'text-flag')}>
-											{signed(row.diff)}
-										</td>
-										<td class={splits}>{row.home}</td>
-										<td class={splits}>{row.road}</td>
-										<td class={splits}>{row.division}</td>
-										<td>{row.streak}</td>
+												{column.label}
+											</th>
+										{/each}
 									</tr>
-								{/each}
-							</tbody>
-						</table>
+								</thead>
+								<tbody>
+									{#each division.teams as row (row.team.id)}
+										{@const playoff = row.seed !== null && row.seed <= 7}
+										<tr
+											style:--team={row.team.color}
+											class="border-b border-border transition-colors last:border-0 hover:bg-[color-mix(in_oklab,var(--team)_12%,var(--card))] [&>td]:px-1 [&>td]:text-right [&>td]:stat @min-[30rem]:[&>td]:px-1.5 @min-[54rem]:[&>td]:px-2 [&>td:last-child]:pr-2.5 @min-[30rem]:[&>td:last-child]:pr-4"
+										>
+											<td class="p-0!">
+												<a
+													href={resolve('/teams/[id=id]', { id: row.team.id })}
+													class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:gap-2.5 @min-[30rem]:px-4"
+												>
+													<TeamLogo team={row.team} class="size-6 shrink-0" />
+													<!-- The full name where there's room for it, the nickname in narrower tables, the abbreviation on phones. -->
+													<span class="hidden truncate @min-[54rem]:inline">{row.team.name}</span>
+													<span class="hidden truncate @min-[30rem]:inline @min-[54rem]:hidden"
+														>{row.team.nickname}</span
+													>
+													<span class="@min-[30rem]:hidden">{row.team.abbreviation}</span>
+													{#if row.seed}
+														<span
+															title={playoff ? `Playoff seed ${row.seed}` : `Seed ${row.seed}`}
+															class={cn(
+																'shrink-0 stat text-xs',
+																playoff
+																	? 'rounded bg-turf/15 px-1.5 text-turf'
+																	: 'text-muted-foreground'
+															)}
+														>
+															{row.seed}
+														</span>
+													{/if}
+												</a>
+											</td>
+											<td>{row.wins}</td>
+											<td>{row.losses}</td>
+											<td>{row.ties}</td>
+											<td>{row.pct}</td>
+											<td class={points}>{row.pointsFor}</td>
+											<td class={points}>{row.pointsAgainst}</td>
+											<td class={cn(row.diff > 0 && 'text-turf', row.diff < 0 && 'text-flag')}>
+												{signed(row.diff)}
+											</td>
+											<td class={splits}>{row.home}</td>
+											<td class={splits}>{row.road}</td>
+											<td class={splits}>{row.division}</td>
+											<td>{row.streak}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
 					</div>
 				{/each}
 			</div>
