@@ -54,12 +54,24 @@
 		{:else}
 			{@const game = row.game}
 			{@const { us, them, home } = view(game)}
-			<div class="flex items-center gap-4 border-b border-border px-4 py-2.5 text-sm last:border-0">
+			<!-- The whole row opens the game, apart from the opponent, which opens their page. -->
+			<div
+				class="relative flex items-center gap-4 border-b border-border px-4 py-2.5 text-sm transition-colors last:border-0 has-[a[data-game]:hover]:bg-accent/60"
+			>
+				<a
+					href={resolve('/games/[id=id]', { id: game.id })}
+					data-game
+					aria-label="Week {game.week ?? ''} {home ? 'vs' : 'at'} {them.team.name}, {game.state ===
+					'pre'
+						? 'preview'
+						: 'box score'}"
+					class="absolute inset-0"
+				></a>
 				<span class="w-9 stat text-muted-foreground">{game.week ?? ''}</span>
 				<span class="hidden w-28 text-muted-foreground sm:block">{gameDay(game.date)}</span>
 				<a
 					href={resolve('/teams/[id=id]', { id: them.team.id })}
-					class="group flex min-w-0 flex-1 items-center gap-2.5"
+					class="group relative z-10 flex min-w-0 flex-1 items-center gap-2.5"
 				>
 					<span class="w-4 shrink-0 text-muted-foreground">{home ? 'vs' : '@'}</span>
 					<TeamLogo team={them.team} class="size-7" />

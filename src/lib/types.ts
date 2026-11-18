@@ -127,7 +127,12 @@ export type TeamStats = {
 	categories: { name: string; stats: { label: string; value: string }[] }[];
 };
 
-export type StatLine = { label: string; values: string[] };
+export type StatLine = {
+	label: string;
+	values: string[];
+	/** The game a game log row is for. */
+	gameId?: string;
+};
 
 export type StatTable = { title: string; labels: string[]; rows: StatLine[] };
 
@@ -142,4 +147,35 @@ export type PlayerDetail = {
 	facts: { label: string; value: string }[];
 	season: StatTable | null;
 	gameLog: StatTable | null;
+};
+
+/** One category of a game's box score for one team, "Passing" or "Defense": a row per player. */
+export type BoxScoreTable = {
+	name: string;
+	/** Column headings ("C/ATT", "YDS"), with what each stands for. */
+	labels: { short: string; long: string }[];
+	rows: { player: { id: string; name: string; jersey: string | null }; values: string[] }[];
+	/** The team's line, when ESPN sends one. */
+	totals: string[] | null;
+};
+
+export type GameDetail = Game & {
+	/** Before kickoff, each team's season averages; after, the game's own numbers. */
+	teamStats: {
+		title: string;
+		rows: { label: string; away: string; home: string; sub: boolean }[];
+	};
+	/** Away team first. Each team's categories line up by name. Empty before kickoff. */
+	boxScore: { team: Team; tables: BoxScoreTable[] }[];
+	scoring: {
+		period: number;
+		clock: string;
+		team: Team;
+		/** "TD", "FG" */
+		kind: string;
+		text: string;
+		away: number;
+		home: number;
+	}[];
+	attendance: number | null;
 };

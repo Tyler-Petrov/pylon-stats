@@ -2,9 +2,11 @@
 // Everything ESPN-shaped stays in this file: the rest of the app sees the types in #lib/types.js.
 import { error, isHttpError } from '@sveltejs/kit';
 import type {
+	BoxScoreTable,
 	Conference,
 	DepthUnit,
 	Game,
+	GameDetail,
 	GameSide,
 	GameState,
 	Player,
@@ -170,7 +172,7 @@ function mapSide(c: Json): GameSide {
 		winner: c.winner ?? null,
 		record:
 			records.find((r: Json) => r.type === 'total')?.summary ?? records[0]?.displayValue ?? null,
-		linescores: (c.linescores ?? []).map((l: Json) => l.value ?? l.displayValue)
+		linescores: (c.linescores ?? []).map((l: Json) => num(l.value ?? l.displayValue) ?? 0)
 	};
 }
 
@@ -238,6 +240,160 @@ export async function scoreboard(week?: number, seasonType?: number): Promise<Sc
 export async function schedule(id: string): Promise<Game[]> {
 	const data = await get(`${SITE}/teams/${id}/schedule`, 5 * MINUTE);
 	return data.events.map(mapGame);
+}
+
+/* A game's box score */
+
+/** ESPN's labels for the team box score come in three different cases; these read as one table. */
+const TEAM_STAT_LABELS: Record<string, string> = {
+	firstDowns: 'First downs',
+	firstDownsPassing: 'Passing',
+	firstDownsRushing: 'Rushing',
+	firstDownsPenalty: 'Penalty',
+	thirdDownEff: '3rd down',
+	fourthDownEff: '4th down',
+	totalOffensivePlays: 'Plays',
+	totalYards: 'Total yards',
+	yardsPerPlay: 'Yards / play',
+	totalDrives: 'Drives',
+	netPassingYards: 'Passing yards',
+	completionAttempts: 'Comp / att',
+	yardsPerPass: 'Yards / pass',
+	interceptions: 'Interceptions',
+	sacksYardsLost: 'Sacks – yards lost',
+	rushingYards: 'Rushing yards',
+	rushingAttempts: 'Attempts',
+	yardsPerRushAttempt: 'Yards / rush',
+	redZoneAttempts: 'Red zone (TD – trips)',
+	totalPenaltiesYards: 'Penalties – yards',
+	turnovers: 'Turnovers',
+	fumblesLost: 'Fumbles lost',
+	defensiveTouchdowns: 'Defensive / ST TDs',
+	possessionTime: 'Possession',
+	// Before kickoff ESPN sends season averages instead.
+	totalPointsPerGame: 'Points',
+	yardsPerGame: 'Total yards',
+	passingYardsPerGame: 'Passing yards',
+	rushingYardsPerGame: 'Rushing yards',
+	totalPointsPerGameAllowed: 'Points allowed',
+	yardsPerGameAllowed: 'Yards allowed',
+	passingYardsPerGameAllowed: 'Passing yards allowed',
+	rushingYardsPerGameAllowed: 'Rushing yards allowed'
+};
+
+/** Stats that break down the one above them, as ESPN lays out its own box score. */
+const TEAM_SUB_STATS = new Set([
+	'firstDownsPassing',
+	'firstDownsRushing',
+	'firstDownsPenalty',
+	'completionAttempts',
+	'yardsPerPass',
+	'interceptions',
+	'sacksYardsLost',
+	'rushingAttempts',
+	'yardsPerRushAttempt',
+	'fumblesLost'
+]);
+
+const BOX_SCORE_NAMES: Record<string, string> = {
+	passing: 'Passing',
+	rushing: 'Rushing',
+	receiving: 'Receiving',
+	fumbles: 'Fumbles',
+	defensive: 'Defense',
+	interceptions: 'Interceptions',
+	kickReturns: 'Kick returns',
+	puntReturns: 'Punt returns',
+	kicking: 'Kicking',
+	punting: 'Punting'
+};
+
+function mapBoxScoreTable(c: Json): BoxScoreTable {
+	return {
+		name: BOX_SCORE_NAMES[c.name] ?? c.text ?? c.name,
+		labels: (c.labels ?? []).map((short: string, i: number) => ({
+			short,
+			long: c.descriptions?.[i] ?? short
+		})),
+		rows: (c.athletes ?? []).map((a: Json) => ({
+			player: {
+				id: String(a.athlete.id),
+				name: a.athlete.displayName,
+				jersey: a.athlete.jersey ?? null
+			},
+			values: a.stats
+		})),
+		totals: c.totals?.length ? c.totals : null
+	};
+}
+
+export async function game(id: string): Promise<GameDetail> {
+	// Scores move every few seconds while a game is on; the page asks again every 30.
+	const data = await get(`${SITE}/summary?event=${id}`, 20 * SECOND);
+	const header = data.header;
+	const comp = header.competitions[0];
+	// The summary's header is a scoreboard event with a few things moved elsewhere in the response.
+	const base = mapGame({
+		...header,
+		date: comp.date,
+		week: { number: header.week },
+		competitions: [
+			{
+				...comp,
+				venue: data.gameInfo?.venue,
+				odds: data.pickcenter,
+				situation: comp.situation ?? data.situation
+			}
+		]
+	});
+	const teamsById = new Map([base.away.team, base.home.team].map((t) => [t.id, t]));
+
+	const sides = data.boxscore?.teams ?? [];
+	const side = (homeAway: string) =>
+		sides.find((t: Json) => t.homeAway === homeAway) ??
+		sides.find((t: Json) => String(t.team.id) === base[homeAway as 'home' | 'away'].team.id);
+	const awayStats: Json[] = side('away')?.statistics ?? [];
+	const homeStats: Json[] = side('home')?.statistics ?? [];
+
+	const players: Json[] = data.boxscore?.players ?? [];
+	const boxScore = [base.away.team, base.home.team].flatMap((team) => {
+		const entry = players.find((p) => String(p.team.id) === team.id);
+		return entry ? [{ team, tables: entry.statistics.map(mapBoxScoreTable) }] : [];
+	});
+
+	return {
+		...base,
+		name: `${base.away.team.name} at ${base.home.team.name}`,
+		teamStats: {
+			title: base.state === 'pre' ? 'Season averages' : 'Team stats',
+			rows: awayStats
+				// ESPN lists interceptions twice, under passing and again under turnovers.
+				.filter((s, i, all) => all.findIndex((t) => t.name === s.name) === i)
+				.map((s) => ({
+					label: TEAM_STAT_LABELS[s.name] ?? s.label,
+					away: s.displayValue,
+					home: homeStats.find((t) => t.name === s.name)?.displayValue ?? '—',
+					sub: TEAM_SUB_STATS.has(s.name)
+				}))
+		},
+		boxScore,
+		scoring: (data.scoringPlays ?? []).flatMap((p: Json) => {
+			const team = teamsById.get(String(p.team?.id));
+			if (!team) return [];
+			return [
+				{
+					period: p.period?.number ?? 0,
+					clock: p.clock?.displayValue ?? '',
+					team,
+					kind: p.scoringType?.abbreviation ?? p.type?.abbreviation ?? '',
+					text: p.text ?? '',
+					away: p.awayScore ?? 0,
+					home: p.homeScore ?? 0
+				}
+			];
+		}),
+		attendance: data.gameInfo?.attendance || null
+	};
 }
 
 /* Standings */
@@ -558,7 +714,7 @@ export async function player(id: string): Promise<PlayerDetail> {
 						const label = game
 							? `Wk ${game.week} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
 							: '';
-						return { label, values: e.stats };
+						return { label, values: e.stats, gameId: String(e.eventId) };
 					})
 				}
 			: null

@@ -20,7 +20,7 @@
 		<TeamLogo team={s.team} class="size-9" />
 		<a
 			href={resolve('/teams/[id=id]', { id: s.team.id })}
-			class={cn('min-w-0 flex-1 hover:underline', lost && 'text-muted-foreground')}
+			class={cn('relative z-10 min-w-0 flex-1 hover:underline', lost && 'text-muted-foreground')}
 		>
 			<span class="block truncate font-medium">
 				{s.team.location}
@@ -58,13 +58,24 @@
 	</div>
 {/snippet}
 
+<!-- The whole card opens the game: the status link stretches over it, and the team names sit above it. -->
 <article
 	class={cn(
-		'flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors duration-500',
+		'relative flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors duration-500 has-[a[data-game]:hover]:bg-accent/60',
 		live ? 'border-pylon/60' : 'border-border'
 	)}
 >
 	<header class="flex items-center justify-between gap-2 text-xs">
+		<a
+			href={resolve('/games/[id=id]', { id: game.id })}
+			data-game
+			aria-label="{game.away.team.name} at {game.home.team.name}, {final
+				? 'box score'
+				: live
+					? 'live box score'
+					: 'preview'}"
+			class="absolute inset-0 rounded-xl"
+		></a>
 		{#if live}
 			<span class="flex items-center gap-1.5 font-semibold text-pylon uppercase">
 				<span class="relative flex size-2">

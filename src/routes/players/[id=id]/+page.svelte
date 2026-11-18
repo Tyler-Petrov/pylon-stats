@@ -36,7 +36,15 @@
 								highlightFirst && r === 0 && 'text-team'
 							)}
 						>
-							<td class="sticky left-0 bg-card px-4 py-2">{row.label}</td>
+							<td class="sticky left-0 bg-card px-4 py-2">
+								{#if row.gameId}
+									<a href={resolve('/games/[id=id]', { id: row.gameId })} class="hover:underline">
+										{row.label}
+									</a>
+								{:else}
+									{row.label}
+								{/if}
+							</td>
 							{#each row.values as value, i (i)}
 								<td class="px-2.5 py-2 text-right stat">{value}</td>
 							{/each}
