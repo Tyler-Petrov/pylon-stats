@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import Search from '@lucide/svelte/icons/search';
 	import { searchOf } from '#lib/query.js';
+	import { getSearchResults } from '#lib/nfl.remote.js';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import Results from '#lib/components/search-results.svelte';
 
@@ -70,10 +71,14 @@
 					<p class="text-muted-foreground">
 						Couldn't search just now{error instanceof Error ? `: ${error.message}` : ''}
 					</p>
+					<!-- The route's load still holds the search that failed, so ask again before showing it again. -->
 					<button
 						type="button"
 						class="text-pylon underline-offset-4 hover:underline"
-						onclick={reset}
+						onclick={() => {
+							getSearchResults(query).refresh();
+							reset();
+						}}
 					>
 						Try again
 					</button>

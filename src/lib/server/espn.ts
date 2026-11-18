@@ -83,6 +83,7 @@ async function request(url: string): Promise<Json> {
  */
 const cache = new Map<string, { expires: number; value: Promise<Json> }>();
 const lastGood = new Map<string, { until: number; data: Json }>();
+const CACHE_MAX = 500;
 const LAST_GOOD_MAX = 200;
 const FALLBACK_TTL = 30 * SECOND;
 
@@ -94,9 +95,15 @@ function get(
 	const now = Date.now();
 	const hit = cache.get(url);
 	if (hit && hit.expires > now) return hit.value;
-	// Every player and week is its own URL, so drop stale entries now and then rather than keep them all.
-	if (cache.size > 500)
+	// Every player, week and search is its own URL, so drop stale entries now and then rather than keep them
+	// all, and the oldest of the rest if that isn't enough.
+	if (cache.size > CACHE_MAX) {
 		for (const [key, entry] of cache) if (entry.expires <= now) cache.delete(key);
+		for (const key of cache.keys()) {
+			if (cache.size <= CACHE_MAX) break;
+			cache.delete(key);
+		}
+	}
 
 	const value = request(url).then(
 		(response) => {
@@ -764,6 +771,13 @@ export async function player(id: string): Promise<PlayerDetail> {
 	};
 }
 
+/** Where a team played under another name since 2000, by ESPN's name for it then. Its id never changed. */
+const FORMER: Record<string, string> = {
+	'st-louis-rams': 'STL',
+	'san-diego-chargers': 'SD',
+	'oakland-raiders': 'OAK'
+};
+
 /** A table for each kind of stat the player has ("Passing", "Rushing"): a row per season, then the career. */
 export async function career(id: string): Promise<StatTable[]> {
 	const [data, all] = await Promise.all([
@@ -783,7 +797,9 @@ export async function career(id: string): Promise<StatTable[]> {
 			rows: [
 				// A season split between two teams is a row for each, then one without a team for the two together.
 				...c.statistics.map((s: Json): StatLine => {
-					const team = s.teamId ? abbreviations.get(String(s.teamId)) : 'Total';
+					const team = s.teamId
+						? (FORMER[s.teamSlug] ?? abbreviations.get(String(s.teamId)))
+						: 'Total';
 					return {
 						label: [s.season?.displayName, team].filter(Boolean).join(' '),
 						values: s.stats,
@@ -959,6 +975,7 @@ export async function leaders(category?: string, sort?: string, season?: number)
 							headshot: entry.athlete.headshot?.href ?? null
 						},
 						teamId: entry.athlete.teamId ? String(entry.athlete.teamId) : null,
+						abbreviation: entry.athlete.teamShortName ?? null,
 						values: columns.map(
 							(c) => entry.categories?.find((g: Json) => g.name === c.group)?.totals?.[c.i] ?? '-'
 						)
@@ -978,19 +995,23 @@ export async function leaders(category?: string, sort?: string, season?: number)
 		teams()
 	]);
 	const byId = new Map(all.map((t) => [t.id, t]));
-	// A season ESPN has nothing for answers without saying which season is the current one.
-	const current: number = data.current ?? season ?? new Date().getFullYear();
+	const current: number = data.current ?? new Date().getFullYear();
 	return {
 		category: key,
 		categories: Object.entries(LEADERS).map(([key, { label }]) => ({ key, label })),
+		// ESPN only names the season it was asked for when it has something for it.
 		season: data.season ?? season ?? current,
 		seasons: Array.from({ length: Math.max(1, current - FIRST_SEASON + 1) }, (_, i) => current - i),
 		sort: sorted,
 		columns: data.columns,
-		rows: data.rows.map(({ teamId, ...row }: Json) => ({
-			...row,
-			team: byId.get(teamId) ?? null
-		}))
+		rows: data.rows.map(({ teamId, abbreviation, ...row }: Json) => {
+			const team = byId.get(teamId);
+			// Today's team, under the name it had that season: the 2001 Rams were "STL".
+			return {
+				...row,
+				team: team ? { ...team, abbreviation: abbreviation ?? team.abbreviation } : null
+			};
+		})
 	};
 }
 
@@ -1022,6 +1043,10 @@ export async function search(query: string): Promise<SearchResults> {
 						headshot: item.headshot?.href ?? null,
 						teamId: String(item.teamRelationships?.[0]?.core?.id ?? '')
 					}))
+		}).catch((failure) => {
+			// ESPN turns down a search without a letter or number in it ("..").
+			if (isHttpError(failure, 400)) return [];
+			throw failure;
 		})
 	]);
 	const byId = new Map(all.map((t) => [t.id, t]));
@@ -1029,7 +1054,7 @@ export async function search(query: string): Promise<SearchResults> {
 		// "kc", "kansas", "chiefs", or the start of any of them.
 		teams: all.filter(
 			(t) =>
-				t.abbreviation.toLowerCase() === q ||
+				t.abbreviation.toLowerCase().startsWith(q) ||
 				t.name.toLowerCase().startsWith(q) ||
 				t.name
 					.toLowerCase()

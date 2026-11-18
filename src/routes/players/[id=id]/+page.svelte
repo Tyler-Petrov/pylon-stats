@@ -92,9 +92,9 @@
 			</section>
 		{/if}
 
-		<!-- A lineman has seasons but no stats in any of them, so there's no log to show. A season without any
-		     that was asked for by name still gets the picker, to get back out of it. -->
-		{#if log && (log.tables.length || (log.seasons.length && log.season !== log.seasons[0]))}
+		<!-- Any player with a season gets the picker, even over a season without stats: an earlier one may
+		     have them. -->
+		{#if log?.seasons.length}
 			<section class="mb-8">
 				<div class="mb-3 flex flex-wrap items-end justify-between gap-3">
 					<h2 class="text-2xl">Game log</h2>
@@ -134,7 +134,7 @@
 			</section>
 		{/if}
 
-		{#if !player.season && !career.length && !log?.tables.length}
+		{#if !player.season && !career.length && !log?.seasons.length}
 			<p class="py-10 text-center text-muted-foreground">No stats yet.</p>
 		{/if}
 	</div>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getGame } from '#lib/nfl.remote.js';
+	import { getGame, getPlays } from '#lib/nfl.remote.js';
 	import { gameDay, kickoff, period } from '#lib/format.js';
 	import { cn } from '#lib/utils.js';
 	import { duration, indicator } from '#lib/motion.js';
@@ -259,10 +259,14 @@
 									<p class="text-muted-foreground">
 										Couldn't load the plays{error instanceof Error ? `: ${error.message}` : ''}
 									</p>
+									<!-- A query that failed stays failed until it's asked again. -->
 									<button
 										type="button"
 										class="text-pylon underline-offset-4 hover:underline"
-										onclick={reset}
+										onclick={() => {
+											getPlays(params.id).refresh();
+											reset();
+										}}
 									>
 										Try again
 									</button>
