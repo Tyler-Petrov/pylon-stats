@@ -108,24 +108,28 @@
 								aria-sort={sorted ? 'descending' : undefined}
 								class="py-2.5 text-right font-medium last:pr-1.5"
 							>
-								<a
-									href={href({
-										category: leaders.category,
-										sort: column.key,
-										season: leaders.season
-									})}
-									title={column.long}
-									data-sveltekit-preload-data="tap"
-									data-sveltekit-reset="false"
-									data-sveltekit-replacestate
-									class={cn(
-										'inline-flex items-center gap-0.5 px-2.5 transition-colors hover:text-foreground',
-										sorted && 'text-pylon hover:text-pylon'
-									)}
-								>
-									{#if sorted}<ArrowDown class="size-3" />{/if}
-									{column.short}
-								</a>
+								{#if column.sortable}
+									<a
+										href={href({
+											category: leaders.category,
+											sort: column.key,
+											season: leaders.season
+										})}
+										title={column.long}
+										data-sveltekit-preload-data="tap"
+										data-sveltekit-reset="false"
+										data-sveltekit-replacestate
+										class={cn(
+											'inline-flex items-center gap-0.5 px-2.5 transition-colors hover:text-foreground',
+											sorted && 'text-pylon hover:text-pylon'
+										)}
+									>
+										{#if sorted}<ArrowDown class="size-3" />{/if}
+										{column.short}
+									</a>
+								{:else}
+									<span title={column.long} class="px-2.5">{column.short}</span>
+								{/if}
 							</th>
 						{/each}
 					</tr>

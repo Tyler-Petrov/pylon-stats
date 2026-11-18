@@ -878,8 +878,14 @@ const PLAYOFF_ROUNDS: Record<number, string> = {
 	2: 'Divisional',
 	3: 'Conf. Champ.'
 };
-const playoffRound = (week: number, season: number) =>
-	week === (season <= 2008 ? 4 : 5) ? 'Super Bowl' : PLAYOFF_ROUNDS[week];
+const playoffRound = (week: number, season: number) => {
+	const superBowl = season <= 2008 ? 4 : 5;
+	return week === superBowl
+		? 'Super Bowl'
+		: week === 9 - superBowl
+			? 'Pro Bowl'
+			: PLAYOFF_ROUNDS[week];
+};
 
 /** The games of one of the player's seasons. Leave the season out for the latest one they played in. */
 export async function gameLog(id: string, season?: number): Promise<GameLog> {
@@ -910,10 +916,16 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 									rows: [
 										...c.events.map((e: Json): StatLine => {
 											const game = data.events?.[e.eventId];
-											// A playoff game's week is its round: week 5 is the Super Bowl.
-											const when =
-												(c.splitType === '3' && playoffRound(game?.week, year)) ||
-												`Wk ${game?.week}`;
+											// A playoff game's week is its round: week 5 is the Super Bowl. Before 1999 ESPN
+											// has no week for a game, only its date.
+											const when = !game?.week
+												? new Date(game?.gameDate).toLocaleDateString('en-US', {
+														month: 'short',
+														day: 'numeric',
+														timeZone: 'America/New_York'
+													})
+												: (c.splitType === '3' && playoffRound(game.week, year)) ||
+													`Wk ${game.week}`;
 											const label = game
 												? `${when} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
 												: '';
@@ -938,7 +950,10 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
  * the column it sorts by to begin with. A group is spelled as ESPN's `sort` wants it; the response has it in
  * lower case.
  */
-const LEADERS: Record<string, { label: string; filter: string; groups: string[]; sort: string }> = {
+const LEADERS: Record<
+	string,
+	{ label: string; filter: string; groups: string[]; sort: string; unsortable?: string[] }
+> = {
 	passing: {
 		label: 'Passing',
 		filter: 'offense:passing',
@@ -961,13 +976,16 @@ const LEADERS: Record<string, { label: string; filter: string; groups: string[];
 		label: 'Defense',
 		filter: 'defense',
 		groups: ['defensive', 'defensiveInterceptions'],
-		sort: 'defensive.totalTackles'
+		sort: 'defensive.totalTackles',
+		// ESPN answers this one with an empty table, and the same for scoring with a 500.
+		unsortable: ['general.gamesPlayed']
 	},
 	scoring: {
 		label: 'Scoring',
 		filter: 'scoring',
 		groups: ['scoring'],
-		sort: 'scoring.totalPoints'
+		sort: 'scoring.totalPoints',
+		unsortable: ['general.gamesPlayed']
 	},
 	kicking: {
 		label: 'Kicking',
@@ -1001,7 +1019,9 @@ export async function leaders(category?: string, sort?: string, season?: number)
 	const key = category && Object.hasOwn(LEADERS, category) ? category : 'passing';
 	const config = LEADERS[key];
 	const groups = ['general', ...config.groups];
-	let sorted = sort && groups.includes(sort.split('.')[0]) ? sort : config.sort;
+	const sortable = (by: string) =>
+		groups.includes(by.split('.')[0]) && !config.unsortable?.includes(by);
+	let sorted = sort && sortable(sort) ? sort : config.sort;
 	const asked = season && season >= FIRST_SEASON ? season : undefined;
 
 	const table = (by: string) => {
@@ -1029,7 +1049,8 @@ export async function leaders(category?: string, sort?: string, season?: number)
 						const column = {
 							key: `${group}.${name}`,
 							short: c.labels[i],
-							long: c.displayNames?.[i] ?? c.labels[i]
+							long: c.displayNames?.[i] ?? c.labels[i],
+							sortable: sortable(`${group}.${name}`)
 						};
 						return [{ column, group: c.name, i }];
 					});
@@ -1058,20 +1079,25 @@ export async function leaders(category?: string, sort?: string, season?: number)
 	};
 
 	const [data, all] = await Promise.all([
-		// ESPN answers a stat it doesn't have in the group with a 400.
+		// ESPN answers a stat it doesn't have in the group with a 400, and one it can't sort by with a 500.
+		// Whatever went wrong with a sort that was asked for, the category's own is worth a try.
 		table(sorted).catch((failure) => {
-			if (sorted === config.sort || !isHttpError(failure, 400)) throw failure;
+			if (sorted === config.sort) throw failure;
 			sorted = config.sort;
 			return table(sorted);
 		}),
 		teams()
 	]);
+	// ESPN sorts by more stats than the table has columns, and some sorts come back empty. One that isn't
+	// shown, or shows nobody, gets the category's own. This comes first: it keeps the season.
+	if (
+		sorted !== config.sort &&
+		!(data.rows.length && data.columns.some((c: Json) => c.key === sorted))
+	)
+		return leaders(key, undefined, asked);
 	// ESPN only names the season it was asked for when it has something for it. One it has nothing for, or
 	// from before the picker starts, is as good as left out.
 	if (asked && !data.season) return leaders(key, sorted);
-	// ESPN sorts by more stats than the table has columns. One that isn't shown gets the category's own.
-	if (sorted !== config.sort && !data.columns.some((c: Json) => c.key === sorted))
-		return leaders(key, undefined, asked);
 	const byId = new Map(all.map((t) => [t.id, t]));
 	const current: number = data.current ?? new Date().getFullYear();
 	return {
