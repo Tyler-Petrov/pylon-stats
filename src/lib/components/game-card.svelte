@@ -61,7 +61,7 @@
 <article
 	class={cn(
 		// No box: a faint line above each game, in the orange while it's on.
-		'relative flex flex-col gap-3 border-t py-4 transition-colors duration-500 has-[a[data-game]:hover]:bg-foreground/[0.03]',
+		'hover-row relative flex flex-col gap-3 border-t py-4 transition-colors duration-500',
 		live ? 'border-pylon/70' : 'border-border'
 	)}
 >

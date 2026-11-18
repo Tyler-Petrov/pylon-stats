@@ -68,7 +68,7 @@
 					class="group border-b border-border last:border-0"
 				>
 					<summary
-						class="flex list-none items-center gap-3 py-2.5 transition-colors hover:bg-foreground/[0.03] [&::-webkit-details-marker]:hidden"
+						class="hover-row flex list-none items-center gap-3 py-2.5 [&::-webkit-details-marker]:hidden"
 					>
 						{#if drive.team}
 							<TeamLogo team={drive.team} class="size-6" />

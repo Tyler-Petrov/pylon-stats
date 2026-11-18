@@ -55,7 +55,7 @@
 			{@const { us, them, home } = view(game)}
 			<!-- The whole row opens the game, apart from the opponent, which opens their page. -->
 			<div
-				class="relative flex items-center gap-4 border-b border-border py-3 text-sm transition-colors has-[a[data-game]:hover]:bg-foreground/[0.03]"
+				class="hover-row relative flex items-center gap-4 border-b border-border py-3 text-sm transition-colors"
 			>
 				<a
 					href={resolve('/games/[id=id]', { id: game.id })}

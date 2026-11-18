@@ -142,6 +142,29 @@
 }
 
 /* Scores and stats read like a stadium board: tabular mono, so columns of numbers line up. */
+/*
+ * A row of a list that lights up under the pointer. The light reaches a little past the row on either side, with
+ * rounded corners, so the text never sits on its edge, while the row itself and its lines stay in line with the
+ * rest of the page.
+ */
+@utility hover-row {
+	position: relative;
+	isolation: isolate;
+	&::before {
+		content: '';
+		position: absolute;
+		inset: 0 -0.75rem;
+		z-index: -1;
+		border-radius: var(--radius-lg);
+		background: var(--color-foreground);
+		opacity: 0;
+		transition: opacity 150ms;
+	}
+	&:hover::before {
+		opacity: 0.045;
+	}
+}
+
 @utility stat {
 	font-family: var(--font-mono);
 	font-variant-numeric: tabular-nums;
