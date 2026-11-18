@@ -19,13 +19,25 @@
 
 	const live = $derived(game.state === 'in');
 	const final = $derived(game.state === 'post');
+	const kickoffAt = $derived(new Date(game.date).getTime());
 
-	// While the game is on, keep it moving. The server caches ESPN for 20 seconds.
+	// From kickoff to the final whistle, keep it moving: a page opened before the game turns into the box score
+	// by itself. The server caches ESPN for 20 seconds. Only primitives are read here, so a refresh that changes
+	// nothing else doesn't restart the timers.
 	$effect(() => {
-		if (!live) return;
+		if (final) return;
 		const current = query;
-		const timer = setInterval(() => current.refresh(), 30_000);
-		return () => clearInterval(timer);
+		let timer: ReturnType<typeof setTimeout>;
+		// Every 30 seconds once it's on. Before then, at kickoff, checking in hourly on the way (a timer days
+		// long would fire at once).
+		// Without a kickoff time, NaN would mean no wait at all.
+		const next = () => Math.min(Math.max(kickoffAt - Date.now(), 30_000), 60 * 60 * 1000) || 30_000;
+		const tick = () => {
+			current.refresh();
+			timer = setTimeout(tick, next());
+		};
+		timer = setTimeout(tick, next());
+		return () => clearTimeout(timer);
 	});
 
 	// Every period that's been played, at least the four quarters.

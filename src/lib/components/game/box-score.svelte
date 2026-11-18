@@ -79,8 +79,9 @@
 								{/each}
 							</tr>
 						{/each}
-						<!-- With one player, the team line says the same again. -->
-						{#if table.totals && table.rows.length > 1}
+						<!-- With one player, the team line usually says the same again. It doesn't for passing: the team's
+						     yards are net of sacks. -->
+						{#if table.totals && (table.rows.length > 1 || table.totals.join() !== table.rows[0].values.join())}
 							<tr class="border-t border-border text-muted-foreground">
 								<th scope="row" class="sticky left-0 bg-card px-4 py-2 text-left font-normal">
 									Team

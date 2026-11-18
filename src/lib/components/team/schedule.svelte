@@ -71,7 +71,7 @@
 				<span class="hidden w-28 text-muted-foreground sm:block">{gameDay(game.date)}</span>
 				<a
 					href={resolve('/teams/[id=id]', { id: them.team.id })}
-					class="group relative z-10 flex min-w-0 flex-1 items-center gap-2.5"
+					class="group relative z-10 mr-auto flex min-w-0 items-center gap-2.5"
 				>
 					<span class="w-4 shrink-0 text-muted-foreground">{home ? 'vs' : '@'}</span>
 					<TeamLogo team={them.team} class="size-7" />

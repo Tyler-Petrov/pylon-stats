@@ -316,11 +316,7 @@ function mapBoxScoreTable(c: Json): BoxScoreTable {
 			long: c.descriptions?.[i] ?? short
 		})),
 		rows: (c.athletes ?? []).map((a: Json) => ({
-			player: {
-				id: String(a.athlete.id),
-				name: a.athlete.displayName,
-				jersey: a.athlete.jersey ?? null
-			},
+			player: { id: String(a.athlete.id), name: a.athlete.displayName },
 			values: a.stats
 		})),
 		totals: c.totals?.length ? c.totals : null

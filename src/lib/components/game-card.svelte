@@ -20,7 +20,7 @@
 		<TeamLogo team={s.team} class="size-9" />
 		<a
 			href={resolve('/teams/[id=id]', { id: s.team.id })}
-			class={cn('relative z-10 min-w-0 flex-1 hover:underline', lost && 'text-muted-foreground')}
+			class={cn('relative z-10 mr-auto min-w-0 hover:underline', lost && 'text-muted-foreground')}
 		>
 			<span class="block truncate font-medium">
 				{s.team.location}

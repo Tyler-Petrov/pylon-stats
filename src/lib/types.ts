@@ -154,7 +154,7 @@ export type BoxScoreTable = {
 	name: string;
 	/** Column headings ("C/ATT", "YDS"), with what each stands for. */
 	labels: { short: string; long: string }[];
-	rows: { player: { id: string; name: string; jersey: string | null }; values: string[] }[];
+	rows: { player: { id: string; name: string }; values: string[] }[];
 	/** The team's line, when ESPN sends one. */
 	totals: string[] | null;
 };
