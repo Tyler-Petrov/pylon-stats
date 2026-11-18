@@ -91,7 +91,7 @@
 
 			<div class="grid gap-8 md:gap-10">
 				{#each conference.divisions as division (division.name)}
-					<div class="relative">
+					<div class="relative min-w-0">
 						<!-- Blurs the shield behind the table so its rows stay legible, fading out above the division name. -->
 						<div
 							aria-hidden="true"
