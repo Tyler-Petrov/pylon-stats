@@ -19,6 +19,8 @@ export const getStandings = query(() => espn.standings());
 
 export const getPlayer = query(id, (playerId) => espn.player(playerId));
 
+export const getGame = query(id, (gameId) => espn.game(gameId));
+
 /** A week of games. Leave both out for the current week. */
 export const getScoreboard = query(
 	z.object({
