@@ -17,7 +17,11 @@ export const getRoster = query(id, (teamId) => espn.roster(teamId));
 
 export const getTeamStats = query(id, (teamId) => espn.teamStats(teamId));
 
-export const getStandings = query(() => espn.standings());
+/** The seasons the app can show, the current one first. */
+export const getSeasons = query(() => espn.seasons());
+
+/** Leave the season out for the current one. */
+export const getStandings = query(season, (year) => espn.standings(year));
 
 export const getPlayer = query(id, (playerId) => espn.player(playerId));
 
@@ -50,7 +54,8 @@ export const getSearchResults = query(z.string().trim().min(2).max(40), (text) =
 export const getScoreboard = query(
 	z.object({
 		week: z.number().int().min(1).max(23).optional(),
-		seasonType: z.number().int().min(1).max(4).optional()
+		seasonType: z.number().int().min(1).max(4).optional(),
+		season
 	}),
-	({ week, seasonType }) => espn.scoreboard(week, seasonType)
+	({ week, seasonType, season }) => espn.scoreboard(week, seasonType, season)
 );

@@ -47,18 +47,18 @@
 
 	<div class="grid gap-6">
 		{#each shown.tables.filter((t) => t.rows.length) as table (table.name)}
-			<div class="overflow-x-auto rounded-xl border border-border bg-card">
+			<div class="overflow-x-auto">
 				<table class="w-full text-sm whitespace-nowrap">
 					<thead>
 						<tr class="border-b border-border text-xs text-muted-foreground">
 							<th
 								scope="col"
-								class="sticky left-0 bg-card px-4 py-2.5 text-left font-display text-base font-bold tracking-wide text-foreground uppercase"
+								class="sticky left-0 bg-background py-2.5 pr-4 text-left font-display text-base font-bold text-foreground"
 							>
 								{table.name}
 							</th>
 							{#each table.labels as label, i (i)}
-								<th scope="col" class="px-2.5 py-2.5 text-right font-medium last:pr-4">
+								<th scope="col" class="px-2.5 py-2.5 text-right font-medium last:pr-0">
 									<abbr title={label.long} class="no-underline">{label.short}</abbr>
 								</th>
 							{/each}
@@ -67,7 +67,7 @@
 					<tbody>
 						{#each table.rows as row (row.player.id)}
 							<tr class="border-b border-border last:border-0">
-								<th scope="row" class="sticky left-0 bg-card px-4 py-2 text-left font-normal">
+								<th scope="row" class="sticky left-0 bg-background py-2 pr-4 text-left font-normal">
 									<a
 										href={resolve('/players/[id=id]', { id: row.player.id })}
 										class="hover:underline"
@@ -76,7 +76,7 @@
 									</a>
 								</th>
 								{#each row.values as value, i (i)}
-									<td class="px-2.5 py-2 text-right stat last:pr-4">{value}</td>
+									<td class="px-2.5 py-2 text-right stat last:pr-0">{value}</td>
 								{/each}
 							</tr>
 						{/each}
@@ -84,11 +84,11 @@
 						     yards are net of sacks. -->
 						{#if table.totals && (table.rows.length > 1 || table.totals.join() !== table.rows[0].values.join())}
 							<tr class="border-t border-border text-muted-foreground">
-								<th scope="row" class="sticky left-0 bg-card px-4 py-2 text-left font-normal">
+								<th scope="row" class="sticky left-0 bg-background py-2 pr-4 text-left font-normal">
 									Team
 								</th>
 								{#each table.totals as value, i (i)}
-									<td class="px-2.5 py-2 text-right stat last:pr-4">{value}</td>
+									<td class="px-2.5 py-2 text-right stat last:pr-0">{value}</td>
 								{/each}
 							</tr>
 						{/if}

@@ -53,10 +53,10 @@
 
 <section aria-labelledby="plays">
 	<h2 id="plays" class="sr-only">Play-by-play</h2>
-	<div class="overflow-hidden rounded-xl border border-border bg-card text-sm">
+	<div class="text-sm">
 		{#each quarters as [quarter, list] (quarter)}
 			<h3
-				class="border-b border-border bg-muted/40 px-4 py-1.5 font-sans text-xs font-medium tracking-normal text-muted-foreground normal-case"
+				class="border-b border-border pt-4 pb-1.5 font-sans text-xs font-medium tracking-normal text-muted-foreground first:pt-0"
 			>
 				{period(quarter, true)}
 			</h3>
@@ -68,7 +68,7 @@
 					class="group border-b border-border last:border-0"
 				>
 					<summary
-						class="flex list-none items-center gap-3 px-4 py-2.5 transition-colors hover:bg-accent/40 [&::-webkit-details-marker]:hidden"
+						class="flex list-none items-center gap-3 py-2.5 transition-colors hover:bg-foreground/[0.03] [&::-webkit-details-marker]:hidden"
 					>
 						{#if drive.team}
 							<TeamLogo team={drive.team} class="size-6" />
@@ -95,9 +95,9 @@
 							class="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
 						/>
 					</summary>
-					<ol class="border-t border-border bg-background/40">
+					<ol class="border-t border-border/60">
 						{#each drive.plays as play (play.id)}
-							<li class="border-b border-border/60 px-4 py-2 last:border-0 sm:pl-13">
+							<li class="border-b border-border/60 py-2 pl-9 last:border-0">
 								<p class="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
 									<span class="stat"
 										>{play.period <= 4 ? 'Q' : ''}{period(play.period)} {play.clock}</span
@@ -113,7 +113,7 @@
 				</details>
 			{/each}
 		{:else}
-			<p class="px-4 py-6 text-center text-muted-foreground">
+			<p class="py-6 text-center text-muted-foreground">
 				{live ? 'No plays yet.' : 'ESPN has no play-by-play for this game.'}
 			</p>
 		{/each}

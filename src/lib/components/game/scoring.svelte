@@ -10,17 +10,17 @@
 
 <section aria-labelledby="scoring">
 	<h2 id="scoring" class="mb-3 text-2xl">Scoring</h2>
-	<div class="overflow-hidden rounded-xl border border-border bg-card text-sm">
+	<div class="text-sm">
 		{#each quarters as [quarter, plays] (quarter)}
 			<h3
-				class="border-b border-border bg-muted/40 px-4 py-1.5 font-sans text-xs font-medium tracking-normal text-muted-foreground normal-case"
+				class="border-b border-border pt-4 pb-1.5 font-sans text-xs font-medium tracking-normal text-muted-foreground first:pt-0"
 			>
 				{period(quarter, true)}
 			</h3>
 			<ol>
 				{#each plays as play, i (i)}
 					{@const awayScored = play.team.id === game.away.team.id}
-					<li class="flex gap-3 border-b border-border px-4 py-2.5 last:border-0">
+					<li class="flex gap-3 border-b border-border py-2.5 last:border-0">
 						<TeamLogo team={play.team} class="mt-0.5 size-6" />
 						<div class="min-w-0 flex-1">
 							<p>
@@ -38,7 +38,7 @@
 				{/each}
 			</ol>
 		{:else}
-			<p class="px-4 py-6 text-center text-muted-foreground">No points yet.</p>
+			<p class="py-6 text-center text-muted-foreground">No points yet.</p>
 		{/each}
 	</div>
 </section>

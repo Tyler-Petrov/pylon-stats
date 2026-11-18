@@ -9,9 +9,9 @@
 <!-- Away on the left and home on the right, as in the header above. -->
 <section aria-labelledby="team-stats">
 	<h2 id="team-stats" class="mb-3 text-2xl">{game.teamStats.title}</h2>
-	<div class="overflow-hidden rounded-xl border border-border bg-card text-sm">
+	<div class="text-sm">
 		<div
-			class="grid grid-cols-[4rem_minmax(0,1fr)_4rem] items-center gap-2 border-b border-border px-4 py-2"
+			class="grid grid-cols-[4rem_minmax(0,1fr)_4rem] items-center gap-2 border-b border-border pb-2"
 		>
 			<TeamLogo team={game.away.team} class="size-6" />
 			<span></span>
@@ -30,7 +30,7 @@
 					<tr
 						class={cn('border-b border-border last:border-0', row.sub && 'text-muted-foreground')}
 					>
-						<td class="w-16 py-2 pl-4 stat">{row.away}</td>
+						<td class="w-16 py-2 stat">{row.away}</td>
 						<th
 							scope="row"
 							class={cn(
@@ -40,7 +40,7 @@
 						>
 							{row.label}
 						</th>
-						<td class="w-16 py-2 pr-4 text-right stat">{row.home}</td>
+						<td class="w-16 py-2 text-right stat">{row.home}</td>
 					</tr>
 				{/each}
 			</tbody>

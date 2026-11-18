@@ -14,7 +14,8 @@ export const duration = (ms = 250) => (prefersReducedMotion.current ? 0 : ms);
  */
 export function indicator() {
 	const [send, receive] = crossfade({
-		duration: () => duration(),
+		// Quick: it's answering a click, and should be there before the eye has moved on.
+		duration: () => duration(150),
 		easing: cubicOut,
 		fallback: (node) => fade(node, { duration: duration(150) })
 	});

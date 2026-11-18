@@ -153,7 +153,33 @@ export type PlayerDetail = {
 	team: Team | null;
 	status: string | null;
 	facts: { label: string; value: string }[];
-	season: StatTable | null;
+};
+
+/** One kind of stat ("Passing", "Rushing") with a number under each of its columns. */
+export type StatGroup = {
+	title: string;
+	/** "YDS", and what it stands for: "Passing Yards". */
+	columns: { short: string; long: string }[];
+	values: string[];
+};
+
+/**
+ * A player's regular seasons and career, by kind of stat. Games played is left out of the columns, since it's
+ * the same in every kind: it's `games`.
+ */
+export type CareerStats = {
+	/** The seasons the player has numbers in, latest first, with the teams he had them for. */
+	seasons: { year: number; teams: string[]; games: string | null }[];
+	/** Games played over the career. */
+	games: string | null;
+	categories: {
+		title: string;
+		columns: StatGroup['columns'];
+		/** The seasons with something in this kind of stat. One split between two teams is the two together. */
+		seasons: { year: number; values: string[] }[];
+		/** The career, or null with nothing in it. */
+		totals: string[] | null;
+	}[];
 };
 
 /** A player's games in one season: a table for the regular season and one for the playoffs, latest first. */
@@ -174,8 +200,6 @@ export type Leaders = {
 	category: string;
 	categories: LeaderCategory[];
 	season: number;
-	/** Latest first. */
-	seasons: number[];
 	sort: string;
 	columns: StatColumn[];
 	rows: {

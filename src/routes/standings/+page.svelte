@@ -5,9 +5,11 @@
 	import { fadeIn } from '#lib/motion.js';
 	import { cn } from '#lib/utils.js';
 	import PageHeader from '#lib/components/page-header.svelte';
+	import SeasonPicker from '#lib/components/season-picker.svelte';
+	import { season } from '#lib/season.svelte.js';
 	import TeamLogo from '#lib/components/team-logo.svelte';
 
-	const conferences = $derived(await getStandings());
+	const conferences = $derived(await getStandings(season.picked));
 
 	const fullNames: Record<string, string> = {
 		AFC: 'American Football Conference',
@@ -41,8 +43,14 @@
 
 <PageHeader
 	title="Standings"
-	description="Seeds 1–7 would make the playoffs if the season ended today"
-/>
+	description={season.picked
+		? `How the ${season.picked} season ended`
+		: 'Seeds 1–7 would make the playoffs if the season ended today'}
+>
+	{#snippet actions()}
+		<SeasonPicker align="end" class="md:hidden" />
+	{/snippet}
+</PageHeader>
 
 <div class="page-column grid gap-10 pb-12 md:gap-12">
 	{#each conferences as conference (conference.name)}
@@ -81,7 +89,7 @@
 			>
 				<h2 id="conference-{conference.name}" class="text-6xl leading-none md:text-7xl">
 					<span
-						class="mb-0.5 block font-sans text-[0.7rem] leading-tight font-medium tracking-[0.25em] text-foreground/65"
+						class="mb-0.5 block font-sans text-[0.7rem] leading-tight font-medium text-foreground/65"
 					>
 						{fullNames[conference.name] ?? conference.name}
 					</span>
@@ -107,7 +115,7 @@
 											class="border-b border-[color-mix(in_oklab,var(--conference)_50%,var(--border))] text-xs text-muted-foreground"
 										>
 											<th
-												class="truncate px-2.5 py-2 text-left font-display text-lg font-bold tracking-wide text-foreground uppercase @min-[30rem]:px-3 @min-[54rem]:px-4"
+												class="truncate px-2.5 py-2 text-left font-display text-lg font-bold text-foreground @min-[30rem]:px-3 @min-[54rem]:px-4"
 											>
 												{division.name}
 											</th>

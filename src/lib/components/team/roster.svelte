@@ -14,7 +14,7 @@
 	{#if player.injury}
 		<span
 			class={cn(
-				'rounded px-1.5 text-[0.65rem] font-semibold whitespace-nowrap uppercase',
+				'rounded px-1.5 text-[0.65rem] font-semibold whitespace-nowrap',
 				player.injury === 'Questionable' ? 'bg-pylon/15 text-pylon' : 'bg-flag/15 text-flag'
 			)}
 		>
@@ -26,11 +26,11 @@
 {#snippet card(player: Player)}
 	<a
 		href={resolve('/players/[id=id]', { id: player.id })}
-		class="flex items-center gap-3 rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-team/50 hover:bg-team/5"
+		class="group flex items-center gap-3 border-b border-border py-2.5"
 	>
 		<Headshot src={player.headshot} class="size-12" />
 		<div class="min-w-0 flex-1">
-			<p class="truncate font-medium">{player.name}</p>
+			<p class="truncate font-medium group-hover:underline">{player.name}</p>
 			<p class="truncate text-xs text-muted-foreground">
 				{[player.position, player.height, player.weight, player.college]
 					.filter(Boolean)
@@ -60,18 +60,16 @@
 				{unit.name}
 				<!-- Special teams' formation is just "Special Teams" again. -->
 				{#if unit.formation.toLowerCase() !== unit.name.toLowerCase()}
-					<span
-						class="font-sans text-xs font-normal tracking-normal text-muted-foreground normal-case"
-					>
+					<span class="font-sans text-xs font-normal tracking-normal text-muted-foreground">
 						{unit.formation}
 					</span>
 				{/if}
 			</h3>
-			<div class="overflow-hidden rounded-xl border border-border">
+			<div class="border-t border-border">
 				{#each unit.slots as slot, i (`${slot.label}-${i}`)}
 					{@const [starter, ...backups] = slot.players}
 					<div
-						class="grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-border bg-card px-3 py-2.5 last:border-0 md:grid-cols-[3.25rem_minmax(0,22rem)_1fr]"
+						class="grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-border py-2.5 md:grid-cols-[3.25rem_minmax(0,22rem)_1fr]"
 					>
 						<!-- Just a hint of the team colour: the labels are there to scan, not to compete with the names. -->
 						<span
@@ -118,7 +116,7 @@
 				{group.name}
 				<span class="stat text-xs font-normal text-muted-foreground">{group.players.length}</span>
 			</h3>
-			<div class="grid gap-2 sm:grid-cols-2">
+			<div class="grid border-t border-border sm:grid-cols-2 sm:gap-x-8">
 				{#each group.players as player (player.id)}
 					{@render card(player)}
 				{/each}

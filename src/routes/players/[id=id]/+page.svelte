@@ -1,35 +1,42 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { getCareer, getGameLog, getPlayer } from '#lib/nfl.remote.js';
-	import { seasonOf } from '#lib/query.js';
+	import { getCareer, getPlayer } from '#lib/nfl.remote.js';
 	import { fadeIn } from '#lib/motion.js';
-	import StatTable from '#lib/components/stat-table.svelte';
-	import type { StatTable as Stats } from '#lib/types.js';
+	import { season } from '#lib/season.svelte.js';
+	import SeasonPicker from '#lib/components/season-picker.svelte';
+	import Games from '#lib/components/player/games.svelte';
+	import StatList from '#lib/components/player/stat-list.svelte';
+	import RollingNumber from '#lib/components/rolling-number.svelte';
+	import type { StatGroup } from '#lib/types.js';
 	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
 
 	const player = $derived(await getPlayer(params.id));
+	// Extra to the page: should it fail, the page carries on without it.
+	const career = $derived(await getCareer(params.id).catch(() => null));
 
-	// The season whose games are shown is in the address (`?season=2023`), so a link or the back button keeps
-	// it. Both of these are extra to the page: should one fail, the page carries on without it.
-	const [career, log] = $derived(
-		await Promise.all([
-			getCareer(params.id).catch((): Stats[] => []),
-			getGameLog({ id: params.id, season: seasonOf(page.url) }).catch(() => null)
-		])
+	// The season comes from the picker in the sidebar, as it does for the whole app. Left at the current one, a
+	// player with nothing in it yet (or retired) shows the last season he has numbers in.
+	const seasons = $derived(career?.seasons ?? []);
+	const shown = $derived(
+		season.picked ? seasons.find((s) => s.year === season.picked) : seasons.at(0)
+	);
+	const year = $derived(shown?.year ?? (seasons.length ? season.picked : undefined));
+
+	const groups = $derived(
+		(career?.categories ?? []).flatMap((c): StatGroup[] => {
+			const values = c.seasons.find((s) => s.year === shown?.year)?.values;
+			return values ? [{ title: c.title, columns: c.columns, values }] : [];
+		})
+	);
+	const totals = $derived(
+		(career?.categories ?? []).flatMap((c): StatGroup[] =>
+			c.totals ? [{ title: c.title, columns: c.columns, values: c.totals }] : []
+		)
 	);
 
-	function pick(season: string) {
-		// The latest season is what the page shows by itself, so it stays out of the address.
-		const here =
-			Number(season) === log?.seasons[0]
-				? resolve('/players/[id=id]', { id: params.id })
-				: resolve(`/players/[id=id]?season=${Number(season)}`, { id: params.id });
-		goto(here, { reset: false });
-	}
+	const games = (count: string) => (count === '1' ? ' game' : ' games');
 </script>
 
 <svelte:head>
@@ -85,57 +92,51 @@
 			{/each}
 		</dl>
 
-		{#if player.season}
+		{#if year}
 			<section class="mb-8">
-				<h2 class="mb-3 text-2xl">{player.season.title}</h2>
-				<StatTable stats={player.season} highlightFirst />
+				<div class="mb-3 flex flex-wrap items-baseline gap-x-3">
+					<h2 class="text-2xl">{year} season</h2>
+					{#if shown}
+						<p class="text-sm text-muted-foreground">
+							{shown.teams.join(', ')}
+							{#if shown.games}
+								{#if shown.teams.length}·{/if}
+								<RollingNumber value={shown.games} suffix={games(shown.games)} />
+							{/if}
+						</p>
+					{/if}
+					<!-- A phone has no sidebar, so the season is picked here. -->
+					<SeasonPicker align="end" class="ml-auto self-center md:hidden" />
+				</div>
+				{#if shown}
+					<StatList {groups} />
+				{:else}
+					<p class="text-muted-foreground">No stats in {year}.</p>
+				{/if}
 			</section>
 		{/if}
 
-		<!-- Any player with a season gets the picker, even over a season without stats: an earlier one may
-		     have them. -->
-		{#if log?.seasons.length}
+		{#if totals.length}
 			<section class="mb-8">
-				<div class="mb-3 flex flex-wrap items-end justify-between gap-3">
-					<h2 class="text-2xl">Game log</h2>
-					<label class="flex items-center gap-2 text-sm text-muted-foreground">
-						Season
-						<select
-							value={String(log.season)}
-							onchange={(event) => pick(event.currentTarget.value)}
-							class="rounded-full border border-border bg-card py-1 pr-2 pl-3 stat text-foreground"
-						>
-							{#each log.seasons as season (season)}
-								<option value={String(season)}>{season}</option>
-							{/each}
-						</select>
-					</label>
+				<div class="mb-3 flex flex-wrap items-baseline gap-x-3">
+					<h2 class="text-2xl">Career</h2>
+					{#if career?.games}
+						<p class="text-sm text-muted-foreground">{career.games}{games(career.games)}</p>
+					{/if}
 				</div>
-				<div class="grid gap-6">
-					{#each log.tables as table (table.title)}
-						<StatTable stats={table} titled />
-					{:else}
-						<p class="py-6 text-center text-muted-foreground">No stats in {log.season}.</p>
-					{/each}
-				</div>
-			</section>
-		{:else if !log}
-			<p class="mb-8 text-sm text-muted-foreground">Couldn't load the game log.</p>
-		{/if}
-
-		{#if career.length}
-			<section class="mb-8">
-				<h2 class="mb-3 text-2xl">Career</h2>
-				<div class="grid gap-6">
-					{#each career as table (table.title)}
-						<StatTable stats={table} titled />
-					{/each}
-				</div>
+				<StatList groups={totals} />
 			</section>
 		{/if}
 
-		{#if !player.season && !career.length && log && !log.seasons.length}
+		{#if !career}
+			<p class="mb-8 text-sm text-muted-foreground">Couldn't load the stats.</p>
+		{:else if !seasons.length && !totals.length}
 			<p class="py-10 text-center text-muted-foreground">No stats yet.</p>
 		{/if}
+
+		<!-- A new player is a new set of games: nothing of the last one's is held over. -->
+		{#key params.id}
+			<Games id={params.id} picked={season.picked} {year} />
+		{/key}
 	</div>
 </div>

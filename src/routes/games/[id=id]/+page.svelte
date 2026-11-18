@@ -4,7 +4,8 @@
 	import { gameDay, kickoff, period } from '#lib/format.js';
 	import { cn } from '#lib/utils.js';
 	import { duration, indicator } from '#lib/motion.js';
-	import { fly } from 'svelte/transition';
+	import { fly, slide } from 'svelte/transition';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import TeamLogo from '#lib/components/team-logo.svelte';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import BoxScore from '#lib/components/game/box-score.svelte';
@@ -54,6 +55,19 @@
 	// Every period that's been played, at least the four quarters.
 	const periods = $derived(Math.max(4, game.away.linescores.length, game.home.linescores.length));
 	const started = $derived(game.state !== 'pre' && game.away.linescores.length > 0);
+	// The score at the end of each quarter folds out of the score itself, for whoever asks.
+	let byQuarter = $state(false);
+	const running = (points: number[]) => {
+		let total = 0;
+		return Array.from({ length: periods }, (_, i) =>
+			i < points.length ? (total += points[i]) : null
+		);
+	};
+	const quarters = $derived.by(() => {
+		const away = running(game.away.linescores);
+		const home = running(game.home.linescores);
+		return away.map((score, i) => ({ away: score, home: home[i] }));
+	});
 
 	const facts = $derived(
 		[
@@ -79,7 +93,7 @@
 		<span class={cn('min-w-0', lost && 'text-muted-foreground')}>
 			<span class="hidden text-sm text-muted-foreground sm:block">{s.team.location}</span>
 			<span
-				class="block truncate font-display text-xl leading-none font-bold tracking-wide uppercase group-hover:underline md:text-3xl"
+				class="block truncate font-display text-xl leading-none font-bold group-hover:underline md:text-3xl"
 			>
 				{s.team.nickname}
 			</span>
@@ -99,6 +113,43 @@
 	</span>
 {/snippet}
 
+{#snippet middle()}
+	{#if game.state === 'pre'}
+		<span class="stat text-2xl font-semibold md:text-4xl">{kickoff(game.date)}</span>
+	{:else}
+		<span
+			class="flex items-center gap-2 text-5xl font-semibold md:gap-4 md:text-7xl"
+			aria-label="{game.away.team.name} {game.away.score}, {game.home.team.name} {game.home.score}"
+		>
+			{@render score(game.away)}
+			<span class="text-2xl text-muted-foreground md:text-4xl">–</span>
+			{@render score(game.home)}
+		</span>
+	{/if}
+	{#if game.state !== 'pre'}
+		<span
+			class={cn(
+				'flex items-center gap-1.5 text-xs font-semibold',
+				live ? 'text-pylon' : 'text-muted-foreground'
+			)}
+		>
+			{#if live}
+				<span class="relative flex size-2">
+					<span
+						class="absolute inline-flex size-full rounded-full bg-pylon opacity-75 motion-safe:animate-ping"
+					></span>
+					<span class="relative inline-flex size-2 rounded-full bg-pylon"></span>
+				</span>
+			{/if}
+			{game.detail}
+			{#if started}
+				<span class="sr-only">, score by quarter</span>
+				<ChevronDown class={cn('size-3.5 transition-transform', byQuarter && 'rotate-180')} />
+			{/if}
+		</span>
+	{/if}
+{/snippet}
+
 <div>
 	<!-- Each team's colour washes in from its own side. -->
 	<header
@@ -113,41 +164,53 @@
 			</p>
 			<div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 md:gap-8">
 				{@render side(game.away)}
-				<div class="flex flex-col items-center gap-2">
-					{#if game.state === 'pre'}
-						<span class="stat text-2xl font-semibold md:text-4xl">{kickoff(game.date)}</span>
-					{:else}
-						<span
-							class="flex items-center gap-2 text-5xl font-semibold md:gap-4 md:text-7xl"
-							aria-label="{game.away.team.name} {game.away.score}, {game.home.team.name} {game.home
-								.score}"
-						>
-							{@render score(game.away)}
-							<span class="text-2xl text-muted-foreground md:text-4xl">–</span>
-							{@render score(game.home)}
-						</span>
-					{/if}
-					{#if game.state !== 'pre'}
-						<span
-							class={cn(
-								'flex items-center gap-1.5 text-xs font-semibold uppercase',
-								live ? 'text-pylon' : 'text-muted-foreground'
-							)}
-						>
-							{#if live}
-								<span class="relative flex size-2">
-									<span
-										class="absolute inline-flex size-full rounded-full bg-pylon opacity-75 motion-safe:animate-ping"
-									></span>
-									<span class="relative inline-flex size-2 rounded-full bg-pylon"></span>
-								</span>
-							{/if}
-							{game.detail}
-						</span>
-					{/if}
-				</div>
+				{#if started}
+					<!-- The score is the way into its own breakdown. -->
+					<button
+						type="button"
+						aria-expanded={byQuarter}
+						aria-controls="by-quarter"
+						onclick={() => (byQuarter = !byQuarter)}
+						class="-my-2 flex flex-col items-center gap-2 rounded-2xl px-3 py-2 transition-colors hover:bg-foreground/5"
+					>
+						{@render middle()}
+					</button>
+				{:else}
+					<div class="flex flex-col items-center gap-2">{@render middle()}</div>
+				{/if}
 				{@render side(game.home)}
 			</div>
+			{#if started && byQuarter}
+				<!-- The score as each quarter ended, each the same way round as the big one above it: away on the
+				     left, home on the right, the side in front picked out. Padding, not a margin, keeps the fold
+				     from jumping as it opens. -->
+				<div id="by-quarter" transition:slide={{ duration: duration(200) }} class="pt-4">
+					<dl class="mx-auto flex w-fit gap-x-5 md:gap-x-7">
+						{#each quarters as { away, home }, i (i)}
+							<div class="text-center">
+								<dt class="text-[0.7rem] text-muted-foreground">
+									<span class="sr-only">After</span>
+									{i < 4 ? 'Q' : ''}{period(i + 1)}
+								</dt>
+								<dd class="stat text-sm text-muted-foreground">
+									<span class="sr-only">
+										{game.away.team.abbreviation}
+										{away ?? 0}, {game.home.team.abbreviation}
+										{home ?? 0}
+									</span>
+									<span aria-hidden="true">
+										<span class={(away ?? 0) > (home ?? 0) ? 'text-foreground' : ''}
+											>{away ?? '–'}</span
+										>–<span class={(home ?? 0) > (away ?? 0) ? 'text-foreground' : ''}
+											>{home ?? '–'}</span
+										>
+									</span>
+								</dd>
+							</div>
+						{/each}
+					</dl>
+				</div>
+			{/if}
 			{#if live && game.situation?.downDistance}
 				<p
 					class={cn(
@@ -168,50 +231,6 @@
 	</header>
 
 	<div class="page-column grid gap-8 pt-6">
-		{#if started}
-			<!-- Points by quarter. -->
-			<div class="overflow-x-auto rounded-xl border border-border bg-card">
-				<table class="w-full text-sm">
-					<thead>
-						<tr class="border-b border-border text-xs text-muted-foreground">
-							<th scope="col" class="px-4 py-2 text-left font-medium"
-								><span class="sr-only">Team</span></th
-							>
-							{#each { length: periods }, i (i)}
-								<th scope="col" class="w-12 px-2 py-2 text-right font-medium">{period(i + 1)}</th>
-							{/each}
-							<th scope="col" class="w-14 py-2 pr-4 pl-2 text-right font-medium">T</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each [game.away, game.home] as s (s.team.id)}
-							<tr class="border-b border-border last:border-0">
-								<th scope="row" class="px-4 py-2 text-left font-normal">
-									<span class="flex items-center gap-2">
-										<TeamLogo team={s.team} class="size-6" />
-										{s.team.abbreviation}
-									</span>
-								</th>
-								{#each { length: periods }, i (i)}
-									<td class="px-2 py-2 text-right stat text-muted-foreground">
-										{s.linescores[i] ?? '–'}
-									</td>
-								{/each}
-								<td
-									class={cn(
-										'py-2 pr-4 pl-2 text-right stat font-semibold',
-										final && s.winner === false && 'text-muted-foreground'
-									)}
-								>
-									{s.score ?? 0}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-
 		{#if game.boxScore.length}
 			<!-- On a wide screen the box score takes the room, with the team numbers and the scoring beside it. On a
 			     narrower one, those come first: they're the short version. -->
