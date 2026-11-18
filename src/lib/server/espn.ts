@@ -419,6 +419,8 @@ export async function game(id: string): Promise<GameDetail> {
 
 /** ESPN's play types for an extra point and a two-point pass or run that were good. */
 const CONVERSIONS = ['61', '15', '16'];
+/** And for what can come between a touchdown and its try: a penalty, a timeout. */
+const BEFORE_A_TRY = ['8', '21'];
 
 /** Whether a drive that began at one score could have ended at another: one side up by no more than a touchdown and two, the other where it was. */
 function follows([away, home]: number[], [toAway, toHome]: number[]) {
@@ -438,11 +440,16 @@ export async function plays(id: string): Promise<Drive[]> {
 	const current = data.drives?.current;
 	if (current && !drives.some((d) => d.id === current.id)) drives.push(current);
 
-	// On old games the extra point after a defensive touchdown opens the next drive. It goes with the touchdown.
+	// On old games the extra point after a defensive touchdown opens the next drive, sometimes behind a penalty
+	// or a timeout. It goes with the touchdown, and so does what came before it.
 	const lists: Json[][] = drives.map((d) => [...(d.plays ?? [])]);
 	lists.forEach((list, i) => {
-		while (i && list[0]?.scoringPlay && CONVERSIONS.includes(String(list[0].type?.id)))
-			lists[i - 1].push(list.shift());
+		for (;;) {
+			const at = list.findIndex((p) => !BEFORE_A_TRY.includes(String(p.type?.id)));
+			const play = list[at];
+			if (!i || !play?.scoringPlay || !CONVERSIONS.includes(String(play.type?.id))) break;
+			lists[i - 1].push(...list.splice(0, at + 1));
+		}
 	});
 
 	/*
@@ -468,9 +475,13 @@ export async function plays(id: string): Promise<Drive[]> {
 			[scoring, next, stamp(all.at(-1))].find((to) => to && follows(from, to)) ?? scoring ?? from;
 		return score;
 	});
-	// Some games before 2011 have plays without scores, or without the plays that scored. If the drives of a
-	// finished game don't arrive at its final score, no score is better than a wrong one.
-	const adds = !competition.status?.type?.completed || score.join() === now.join();
+	// Some games before 2011 have plays without scores, or without the plays that scored. If the score ever
+	// falls, or the drives of a finished game don't arrive at its final score, no score is better than a wrong one.
+	const adds =
+		scores.every(
+			([away, home], i) => !i || (away >= scores[i - 1][0] && home >= scores[i - 1][1])
+		) &&
+		(!competition.status?.type?.completed || score.join() === now.join());
 
 	return drives.map((d, i) => {
 		const all = lists[i];
@@ -479,7 +490,8 @@ export async function plays(id: string): Promise<Drive[]> {
 		return {
 			id: String(d.id),
 			team: teamsById.get(String(d.team?.id)) ?? null,
-			period: d.start?.period?.number ?? all[0]?.period?.number ?? 0,
+			// ESPN has sent a drive that started in "quarter 0", with its first play in the 1st.
+			period: d.start?.period?.number || all[0]?.period?.number || 0,
 			result: d.displayResult ?? null,
 			scored: Boolean(d.isScore),
 			summary: d.description ?? '',
@@ -499,7 +511,8 @@ export async function plays(id: string): Promise<Drive[]> {
 					clock: p.clock?.displayValue ?? '',
 					// A timeout between downs comes as " & Goal at LAR 15", with no down to its name.
 					down: down && /^\d/.test(down) ? down : null,
-					text: p.text ?? '',
+					// The plays of 2005, and some up to 2008, have no words: "Pass", "Timeout" is what's left.
+					text: p.text || p.type?.text || '',
 					scoring: Boolean(p.scoringPlay)
 				};
 			})
