@@ -33,7 +33,8 @@
 </script>
 
 <!-- The season everything is showing: plain words and a chevron, opening onto the years. -->
-<Popover.Root bind:open>
+<!-- Opened with no years to show, it asks for them again: the first try may have failed. -->
+<Popover.Root bind:open onOpenChange={(next) => next && !seasons.length && season.retry()}>
 	<Popover.Trigger
 		class={cn(
 			'flex items-center gap-1.5 rounded-lg text-sm text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground',

@@ -20,16 +20,22 @@ let picked = $state<number | undefined>(remembered());
 // the picker sits in the frame around every page, and reading the query there without awaiting it lost it.
 let all = $state<number[]>([]);
 let asked = false;
-function load() {
+function load(again = false) {
 	if (asked) return;
 	asked = true;
-	getSeasons().then(
+	const query = getSeasons();
+	// A query that failed keeps its failure until it's asked again.
+	(again ? query.refresh().then(() => query) : query).then(
 		(list) => (all = list),
 		() => (asked = false)
 	);
 }
 
 export const season = {
+	/** Ask for the seasons again, after a load that failed. Does nothing while they're loaded or on their way. */
+	retry() {
+		if (!all.length) load(true);
+	},
 	/** Every season there is to pick, the current one first. Empty until it has loaded. */
 	get all() {
 		load();

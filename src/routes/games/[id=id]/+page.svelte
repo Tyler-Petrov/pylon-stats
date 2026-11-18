@@ -50,6 +50,9 @@
 		{ key: 'plays', label: 'Play-by-play' }
 	] as const;
 	let view = $state<(typeof views)[number]['key']>('box');
+	// The plays come from the drives, not the box score, so a game ESPN has no box score for can still have them.
+	const shownViews = $derived(views.filter(({ key }) => key === 'plays' || game.boxScore.length));
+	const shownView = $derived(game.boxScore.length ? view : 'plays');
 	const [send, receive] = indicator();
 
 	// Every period that's been played, at least the four quarters.
@@ -193,17 +196,20 @@
 									{i < 4 ? 'Q' : ''}{period(i + 1)}
 								</dt>
 								<dd class="stat text-sm text-muted-foreground">
+									<!-- A quarter still to come has no score, which isn't one of nothing. -->
 									<span class="sr-only">
 										{game.away.team.abbreviation}
-										{away ?? 0}, {game.home.team.abbreviation}
-										{home ?? 0}
+										{away ?? 'not yet'}, {game.home.team.abbreviation}
+										{home ?? 'not yet'}
 									</span>
 									<span aria-hidden="true">
-										<span class={(away ?? 0) > (home ?? 0) ? 'text-foreground' : ''}
-											>{away ?? '–'}</span
-										>–<span class={(home ?? 0) > (away ?? 0) ? 'text-foreground' : ''}
-											>{home ?? '–'}</span
-										>
+										{#if away == null || home == null}
+											–
+										{:else}
+											<span class={away > home ? 'text-foreground' : ''}>{away}</span>–<span
+												class={home > away ? 'text-foreground' : ''}>{home}</span
+											>
+										{/if}
 									</span>
 								</dd>
 							</div>
@@ -231,18 +237,20 @@
 	</header>
 
 	<div class="page-column grid gap-8 pt-6">
-		{#if game.boxScore.length}
+		{#if game.boxScore.length || game.state !== 'pre'}
 			<!-- On a wide screen the box score takes the room, with the team numbers and the scoring beside it. On a
 			     narrower one, those come first: they're the short version. -->
 			<div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
 				<aside class="grid gap-8 lg:order-last">
-					<TeamStats {game} />
+					{#if game.teamStats.rows.length}
+						<TeamStats {game} />
+					{/if}
 					<Scoring {game} />
 				</aside>
 				<div class="min-w-0">
 					<div role="group" aria-label="View" class="mb-5 flex gap-1 border-b border-border">
-						{#each views as { key, label } (key)}
-							{@const active = view === key}
+						{#each shownViews as { key, label } (key)}
+							{@const active = shownView === key}
 							<button
 								type="button"
 								aria-pressed={active}
@@ -263,7 +271,7 @@
 							</button>
 						{/each}
 					</div>
-					{#if view === 'box'}
+					{#if shownView === 'box'}
 						<BoxScore {game} />
 					{:else}
 						<svelte:boundary>
@@ -301,9 +309,7 @@
 					<TeamStats {game} />
 				{/if}
 				<p class="text-center text-muted-foreground">
-					{game.state === 'pre'
-						? 'The box score fills in once the game kicks off.'
-						: 'No box score for this game yet.'}
+					The box score fills in once the game kicks off.
 				</p>
 			</div>
 		{/if}
