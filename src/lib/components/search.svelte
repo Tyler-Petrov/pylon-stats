@@ -28,10 +28,18 @@
 	const query = $derived(asked ? getSearchResults(asked) : undefined);
 
 	// The last results stay up while the next are on their way, so the list doesn't blink with every letter.
-	let last: SearchResults | undefined;
-	const results = $derived.by(() => (last = asked ? (query?.current ?? last) : undefined));
+	// Each is kept with the search it answers.
+	let last: { for: string; results: SearchResults } | undefined;
+	const shown = $derived.by(() => {
+		if (!asked) return (last = undefined);
+		if (query?.current) last = { for: asked, results: query.current };
+		return last;
+	});
+	const results = $derived(shown?.results);
 	const failed = $derived(Boolean(query?.error) && !query?.loading);
 	const empty = $derived(results && !results.teams.length && !results.players.length);
+	// Typed past what's listed: the list stays up, faded, but Enter can't open a result for the old text.
+	const stale = $derived(Boolean(shown) && text.trim().slice(0, 40).trim() !== shown?.for);
 
 	const item =
 		'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 outline-none data-selected:bg-foreground/10';
@@ -73,7 +81,7 @@
 					</kbd>
 				</div>
 				<Command.List class="max-h-[min(60dvh,28rem)] overflow-y-auto overscroll-contain p-2">
-					<Command.Viewport>
+					<Command.Viewport class={stale ? 'opacity-60' : undefined}>
 						{#if failed}
 							<div class="flex flex-col items-center gap-2 py-10 text-center text-sm">
 								<p class="text-muted-foreground">Couldn't search just now.</p>
@@ -85,7 +93,8 @@
 									Try again
 								</button>
 							</div>
-						{:else if !results}
+							<!-- Nothing yet, or nothing for what was typed before: the new search's answer is on its way. -->
+						{:else if !results || (empty && stale)}
 							<p class="py-10 text-center text-sm text-muted-foreground">
 								{asked ? 'Searching…' : "Type two letters or more of a team or a player's name."}
 							</p>
@@ -104,7 +113,8 @@
 										{#each results.teams as team (team.id)}
 											<Command.LinkItem
 												value="team-{team.id}"
-												href={resolve('/teams/[id=id]', { id: team.id })}
+												href={stale ? undefined : resolve('/teams/[id=id]', { id: team.id })}
+												disabled={stale}
 												onSelect={() => (open = false)}
 												class={item}
 											>
@@ -129,7 +139,8 @@
 										{#each results.players as player (player.id)}
 											<Command.LinkItem
 												value="player-{player.id}"
-												href={resolve('/players/[id=id]', { id: player.id })}
+												href={stale ? undefined : resolve('/players/[id=id]', { id: player.id })}
+												disabled={stale}
 												onSelect={() => (open = false)}
 												class={item}
 											>

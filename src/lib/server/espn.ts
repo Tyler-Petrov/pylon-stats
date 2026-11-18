@@ -391,7 +391,10 @@ const BOX_SCORE_ORDER = [
 
 /**
  * Everyone on a team with a touchdown to their name, and how: ESPN spreads them over a column in each of its own
- * tables. A defender's count already has his interception returns in it.
+ * tables. A defender's count has his interception returns in it, and sometimes his kick returns too (Juanyeh
+ * Thomas's against Washington in 2024) and sometimes not (Terrence McGee's against Cincinnati in 2005). So his
+ * return touchdowns are the ones ESPN names (interception, kick and punt returns), plus whatever the defensive
+ * count has beyond those: a fumble or blocked kick returned.
  */
 function touchdowns(tables: Json[]): BoxScoreTable | null {
 	const kinds = [
@@ -403,12 +406,13 @@ function touchdowns(tables: Json[]): BoxScoreTable | null {
 			long: 'Return touchdowns: kicks, punts, interceptions and fumbles',
 			from: {
 				defensive: 'defensiveTouchdowns',
+				interceptions: 'interceptionTouchdowns',
 				kickReturns: 'kickReturnTouchdowns',
 				puntReturns: 'puntReturnTouchdowns'
 			}
 		}
 	];
-	const byPlayer = new Map<string, { name: string; counts: number[] }>();
+	const byPlayer = new Map<string, { name: string; counts: number[]; defense: number }>();
 	kinds.forEach((kind, k) => {
 		for (const [table, key] of Object.entries(kind.from)) {
 			const c = tables.find((t) => t.name === table);
@@ -420,13 +424,17 @@ function touchdowns(tables: Json[]): BoxScoreTable | null {
 				const id = String(a.athlete.id);
 				const player = byPlayer.get(id) ?? {
 					name: a.athlete.displayName,
-					counts: kinds.map(() => 0)
+					counts: kinds.map(() => 0),
+					defense: 0
 				};
-				player.counts[k] += scored;
+				if (table === 'defensive') player.defense += scored;
+				else player.counts[k] += scored;
 				byPlayer.set(id, player);
 			}
 		}
 	});
+	for (const player of byPlayer.values())
+		player.counts[3] += Math.max(0, player.defense - player.counts[3]);
 	if (!byPlayer.size) return null;
 	// A touchdown thrown isn't one scored: the total is what the player took in himself.
 	const total = (counts: number[]) => counts[1] + counts[2] + counts[3];
@@ -650,6 +658,21 @@ export async function plays(id: string): Promise<Drive[]> {
 /** The red and navy of the conference shields. ESPN doesn't send these. */
 const CONFERENCE_COLORS: Record<string, string> = { AFC: '#d50a0a', NFC: '#013369' };
 
+/**
+ * A team as a standings entry names it, which in a past season is what it was called then (the Oakland
+ * Raiders), with today's colour and logo: ESPN's logo for a past name is today's anyway.
+ */
+function asOf(entry: Json, now: Team | undefined): Team {
+	if (!now) return mapTeam(entry);
+	return {
+		...now,
+		abbreviation: entry.abbreviation ?? now.abbreviation,
+		name: entry.displayName ?? now.name,
+		location: entry.location ?? now.location,
+		nickname: entry.name ?? now.nickname
+	};
+}
+
 export async function standings(season?: number): Promise<Conference[]> {
 	const asked = await past(season);
 	const [data, all] = await Promise.all([
@@ -670,7 +693,7 @@ export async function standings(season?: number): Promise<Conference[]> {
 						const value = (name: string) => stat(name)?.value ?? 0;
 						const display = (name: string) => stat(name)?.displayValue ?? '';
 						return {
-							team: byId.get(String(entry.team.id)) ?? mapTeam(entry.team),
+							team: asOf(entry.team, byId.get(String(entry.team.id))),
 							wins: value('wins'),
 							losses: value('losses'),
 							ties: value('ties'),
@@ -990,9 +1013,12 @@ const HEADLINES: Record<string, Record<string, string>> = {
 };
 
 /** A kicker's game log splits his kicking in two, under names of its own and no words for either. */
-const LOG_KINDS: Record<string, { kind: string; label: string }> = {
+const LOG_KINDS: Record<string, { kind: string; label?: string }> = {
 	fieldgoals: { kind: 'kicking', label: 'Field goals' },
-	pats: { kind: 'kicking', label: 'Extra points' }
+	pats: { kind: 'kicking', label: 'Extra points' },
+	// A defender's is split in three. Fumbles stay a kind of their own: a ball carrier's log has them too.
+	tackles: { kind: 'defensive' },
+	interceptions: { kind: 'defensive' }
 };
 
 /** The player's regular seasons and career in each kind of stat ("Passing", "Rushing"), without the empty ones. */
