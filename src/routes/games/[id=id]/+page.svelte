@@ -29,9 +29,9 @@
 		const current = query;
 		let timer: ReturnType<typeof setTimeout>;
 		// Every 30 seconds once it's on. Before then, at kickoff, checking in hourly on the way (a timer days
-		// long would fire at once).
-		// Without a kickoff time, NaN would mean no wait at all.
-		const next = () => Math.min(Math.max(kickoffAt - Date.now(), 30_000), 60 * 60 * 1000) || 30_000;
+		// long would fire at once). Without a kickoff time, it polls as if the game were on.
+		const next = () =>
+			kickoffAt > Date.now() ? Math.min(kickoffAt - Date.now(), 60 * 60 * 1000) : 30_000;
 		const tick = () => {
 			current.refresh();
 			timer = setTimeout(tick, next());
