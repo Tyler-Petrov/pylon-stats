@@ -135,15 +135,16 @@
 														>{row.team.nickname}</span
 													>
 													<span class="@min-[30rem]:hidden">{row.team.abbreviation}</span>
-													<!-- Past phone widths every seed is padded like the playoff chip, so a team moving into the playoffs
-													     doesn't change the row's width. (Phones skip that for lack of room.) -->
+													<!-- Past phone widths every seed reserves the playoff chip's padding, so a team moving into the
+													     playoffs (a one-digit seed) never needs more room than its row already has. Phones skip that
+													     for lack of room. -->
 													{#if row.seed}
 														<span
 															title={playoff ? `Playoff seed ${row.seed}` : `Seed ${row.seed}`}
 															class={cn(
-																'shrink-0 rounded stat text-xs',
+																'shrink-0 stat text-xs',
 																playoff
-																	? 'bg-turf/15 px-1.5 text-turf'
+																	? 'rounded bg-turf/15 px-1.5 text-turf'
 																	: 'text-muted-foreground @min-[30rem]:px-1.5'
 															)}
 														>
