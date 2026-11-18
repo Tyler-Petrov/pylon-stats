@@ -89,7 +89,7 @@
 			<div class="@container grid gap-3 sm:gap-4">
 				{#each conference.divisions as division (division.name)}
 					<div class="overflow-x-auto rounded-xl border border-border bg-card">
-						<table class="w-full min-w-[19.25rem] table-fixed text-sm md:min-w-[41rem]">
+						<table class="w-full min-w-[19.25rem] table-fixed text-sm md:min-w-[41.75rem]">
 							<thead>
 								<tr
 									class="border-b border-border bg-[color-mix(in_oklab,var(--conference)_7%,var(--card))] text-xs text-muted-foreground"
