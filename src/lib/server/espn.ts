@@ -960,6 +960,41 @@ const blank = (value?: string) => !value || !/[1-9]/.test(value);
  */
 const SAYS_NOTHING = new Set(['QBRating', 'adjQBR']);
 
+/**
+ * The few numbers that say the most about a player in each kind of stat, by ESPN's names, with what to call
+ * them in words. The page shows these large and the rest small, and picks them out in a game log's columns.
+ */
+const HEADLINES: Record<string, Record<string, string>> = {
+	passing: {
+		passingYards: 'Yards',
+		passingTouchdowns: 'Touchdowns',
+		interceptions: 'Interceptions',
+		QBRating: 'Passer rating'
+	},
+	rushing: {
+		rushingYards: 'Yards',
+		rushingTouchdowns: 'Touchdowns',
+		yardsPerRushAttempt: 'Per carry'
+	},
+	receiving: { receptions: 'Catches', receivingYards: 'Yards', receivingTouchdowns: 'Touchdowns' },
+	defensive: { totalTackles: 'Tackles', sacks: 'Sacks', interceptions: 'Interceptions' },
+	kicking: {
+		'fieldGoalsMade-fieldGoalAttempts': 'Field goals',
+		fieldGoalPct: 'Percent made',
+		longFieldGoalMade: 'Longest',
+		totalKickingPoints: 'Points'
+	},
+	punting: { punts: 'Punts', grossAvgPuntYards: 'Average', puntsInside20: 'Inside the 20' },
+	returning: { kickReturnYards: 'Kick return yards', puntReturnYards: 'Punt return yards' },
+	scoring: { totalTouchdowns: 'Touchdowns', totalPoints: 'Points' }
+};
+
+/** A kicker's game log splits his kicking in two, under names of its own and no words for either. */
+const LOG_KINDS: Record<string, { kind: string; label: string }> = {
+	fieldgoals: { kind: 'kicking', label: 'Field goals' },
+	pats: { kind: 'kicking', label: 'Extra points' }
+};
+
 /** The player's regular seasons and career in each kind of stat ("Passing", "Rushing"), without the empty ones. */
 export async function career(id: string): Promise<CareerStats> {
 	const [data, all] = await Promise.all([
@@ -1009,11 +1044,13 @@ export async function career(id: string): Promise<CareerStats> {
 		const totals: string[] = c.totals ?? [];
 		games = Math.max(games, count(totals));
 		return {
+			key: c.name,
 			title: c.displayName,
 			columns: shown.map((i) => ({
 				// ESPN's kicking labels come with stray tabs.
 				short: String(c.labels[i]).trim(),
-				long: c.displayNames?.[i] ?? String(c.labels[i]).trim()
+				long: c.displayNames?.[i] ?? String(c.labels[i]).trim(),
+				headline: HEADLINES[c.name]?.[names[i]]
 			})),
 			seasons: rows.sort((a, b) => b.year - a.year),
 			totals: totals.length && !empty(totals) ? values(totals) : null
@@ -1058,11 +1095,17 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 			const seasons = data.filters?.find((f: Json) => f.name === 'season');
 			const year = Number(seasons?.value) || (season ?? 0);
 			const labels: string[] = data.labels ?? [];
+			const names: string[] = data.names ?? [];
 			// The columns run passing first, then rushing, and so on, with some labels ("YDS") in more than one.
 			const groups = (data.categories ?? []).map((c: Json) => ({
-				label: c.displayName,
+				label: LOG_KINDS[c.name]?.label ?? c.displayName,
 				span: c.count
 			}));
+			// Which kind of stat each column is in, to find the headline ones among them.
+			const kinds = (data.categories ?? []).flatMap((c: Json) =>
+				Array.from({ length: c.count ?? 0 }, () => LOG_KINDS[c.name]?.kind ?? String(c.name))
+			);
+			const strong = labels.map((_, i) => Boolean(HEADLINES[kinds[i]]?.[names[i]]));
 			return {
 				season: year,
 				seasons: (seasons?.options ?? []).map((o: Json) => Number(o.value)),
@@ -1075,6 +1118,7 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 									title: type.displayName,
 									labels,
 									groups,
+									strong,
 									rows: [
 										...c.events.map((e: Json): StatLine => {
 											const game = data.events?.[e.eventId];
@@ -1091,7 +1135,17 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 											const label = game
 												? `${when} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
 												: '';
-											return { label, values: e.stats, gameId: String(e.eventId) };
+											return {
+												label,
+												values: e.stats,
+												gameId: String(e.eventId),
+												game: game && {
+													when,
+													opponent: `${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation}`,
+													result: game.gameResult,
+													score: game.score
+												}
+											};
 										}),
 										...(c.totals?.length ? [{ label: 'Total', values: c.totals, total: true }] : [])
 									]

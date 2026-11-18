@@ -12,6 +12,17 @@
 
 	let { params }: PageProps = $props();
 
+	/** The kind of stat each offensive position and specialist is about. Anyone else is on defense. */
+	const LEADS: Record<string, string> = {
+		Quarterback: 'passing',
+		'Running Back': 'rushing',
+		Fullback: 'rushing',
+		'Wide Receiver': 'receiving',
+		'Tight End': 'receiving',
+		'Place Kicker': 'kicking',
+		Punter: 'punting'
+	};
+
 	const player = $derived(await getPlayer(params.id));
 	// Extra to the page: should it fail, the page carries on without it.
 	const career = $derived(await getCareer(params.id).catch(() => null));
@@ -24,15 +35,21 @@
 	);
 	const year = $derived(shown?.year ?? (seasons.length ? season.picked : undefined));
 
+	// The kind of stat a player's position is about goes first: a receiver's catches before his three carries.
+	const lead = $derived(LEADS[player.position ?? ''] ?? 'defensive');
+	const categories = $derived(
+		(career?.categories ?? []).toSorted((a, b) => Number(b.key === lead) - Number(a.key === lead))
+	);
+
 	const groups = $derived(
-		(career?.categories ?? []).flatMap((c): StatGroup[] => {
+		categories.flatMap((c): StatGroup[] => {
 			const values = c.seasons.find((s) => s.year === shown?.year)?.values;
-			return values ? [{ title: c.title, columns: c.columns, values }] : [];
+			return values ? [{ key: c.key, title: c.title, columns: c.columns, values }] : [];
 		})
 	);
 	const totals = $derived(
-		(career?.categories ?? []).flatMap((c): StatGroup[] =>
-			c.totals ? [{ title: c.title, columns: c.columns, values: c.totals }] : []
+		categories.flatMap((c): StatGroup[] =>
+			c.totals ? [{ key: c.key, title: c.title, columns: c.columns, values: c.totals }] : []
 		)
 	);
 

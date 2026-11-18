@@ -132,6 +132,8 @@ export type StatLine = {
 	values: string[];
 	/** The game a game log row is for. */
 	gameId?: string;
+	/** That game in parts, for a log to line up: "Wk 10", "@ CAR", "W" or "L" or "T", "20-17 OT". */
+	game?: { when: string; opponent: string; result: string; score: string };
 	/** The row adds up the ones above it: a career, a season. */
 	total?: boolean;
 };
@@ -141,6 +143,8 @@ export type StatTable = {
 	labels: string[];
 	/** What the columns fall under ("Passing" over the first eleven), when a table mixes kinds of stat. */
 	groups?: { label: string; span: number }[];
+	/** The columns worth picking out, one flag a column: a passer's yards and touchdowns. */
+	strong?: boolean[];
 	rows: StatLine[];
 };
 
@@ -157,9 +161,14 @@ export type PlayerDetail = {
 
 /** One kind of stat ("Passing", "Rushing") with a number under each of its columns. */
 export type StatGroup = {
+	/** ESPN's name for the kind: "passing". */
+	key: string;
 	title: string;
-	/** "YDS", and what it stands for: "Passing Yards". */
-	columns: { short: string; long: string }[];
+	/**
+	 * "YDS", and what it stands for: "Passing Yards". A headline column is one of the few that say the most,
+	 * with a name for it in words ("Yards").
+	 */
+	columns: { short: string; long: string; headline?: string }[];
 	values: string[];
 };
 
@@ -173,6 +182,7 @@ export type CareerStats = {
 	/** Games played over the career. */
 	games: string | null;
 	categories: {
+		key: string;
 		title: string;
 		columns: StatGroup['columns'];
 		/** The seasons with something in this kind of stat. One split between two teams is the two together. */
