@@ -1099,6 +1099,7 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 			// The columns run passing first, then rushing, and so on, with some labels ("YDS") in more than one.
 			const groups = (data.categories ?? []).map((c: Json) => ({
 				label: LOG_KINDS[c.name]?.label ?? c.displayName,
+				kind: LOG_KINDS[c.name]?.kind ?? String(c.name),
 				span: c.count
 			}));
 			// Which kind of stat each column is in, to find the headline ones among them.
@@ -1141,7 +1142,12 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 												gameId: String(e.eventId),
 												game: game && {
 													when,
-													opponent: `${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation}`,
+													at: game.atVs === '@' ? '@' : 'vs',
+													team: {
+														id: String(game.opponent.id),
+														abbreviation: game.opponent.abbreviation,
+														logo: darkLogo(game.opponent.logo ?? '')
+													},
 													result: game.gameResult,
 													score: game.score
 												}

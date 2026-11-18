@@ -59,7 +59,7 @@
 		<h2 class="mb-3 text-2xl">Games</h2>
 		<div class={cn('grid gap-6 transition-opacity', waiting && 'opacity-50')}>
 			{#each tables as table (table.title)}
-				<StatTable stats={table} titled />
+				<StatTable stats={table} />
 			{/each}
 		</div>
 	</section>

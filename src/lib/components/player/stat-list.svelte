@@ -36,11 +36,13 @@
 <div class="overflow-hidden">
 	<div>
 		{#each split as { group, headlines, rest } (group.key)}
+			<!-- Each kind of stat has a quiet hue of its own, the same one its columns have in the game log. -->
 			<section
 				transition:slide={{ duration: duration() }}
+				style:--kind="var(--kind-{group.key}, var(--muted-foreground))"
 				class="border-t border-border py-4 md:grid md:grid-cols-[7rem_1fr] md:gap-x-4"
 			>
-				<h3 class="mb-3 font-display text-base font-bold md:mb-0">{group.title}</h3>
+				<h3 class="mb-3 font-display text-base font-bold text-(--kind) md:mb-0">{group.title}</h3>
 				<div>
 					<!-- The headline numbers, large, with their names in words under them. -->
 					{#if headlines.length}
@@ -49,13 +51,13 @@
 						>
 							{#each headlines as column (column.i)}
 								<div class="flex flex-col-reverse">
-									<dt title={column.long} class="mt-1 text-xs text-muted-foreground">
+									<dt title={column.long} class="mt-1 text-xs text-(--kind)/80">
 										{column.headline}
 									</dt>
 									<dd
 										class={cn(
 											'stat text-2xl/none md:text-3xl/none',
-											blank(group.values[column.i]) && 'text-muted-foreground'
+											blank(group.values[column.i]) ? 'text-muted-foreground' : 'text-tinted'
 										)}
 									>
 										<RollingNumber value={group.values[column.i] ?? '-'} />

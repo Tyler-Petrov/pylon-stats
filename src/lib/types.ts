@@ -132,8 +132,14 @@ export type StatLine = {
 	values: string[];
 	/** The game a game log row is for. */
 	gameId?: string;
-	/** That game in parts, for a log to line up: "Wk 10", "@ CAR", "W" or "L" or "T", "20-17 OT". */
-	game?: { when: string; opponent: string; result: string; score: string };
+	/** That game in parts, for a log to line up: "Wk 10", "@" CAR, "W" or "L" or "T", "20-17 OT". */
+	game?: {
+		when: string;
+		at: '@' | 'vs';
+		team: Pick<Team, 'id' | 'abbreviation' | 'logo'>;
+		result: string;
+		score: string;
+	};
 	/** The row adds up the ones above it: a career, a season. */
 	total?: boolean;
 };
@@ -142,7 +148,7 @@ export type StatTable = {
 	title: string;
 	labels: string[];
 	/** What the columns fall under ("Passing" over the first eleven), when a table mixes kinds of stat. */
-	groups?: { label: string; span: number }[];
+	groups?: { label: string; span: number; kind?: string }[];
 	/** The columns worth picking out, one flag a column: a passer's yards and touchdowns. */
 	strong?: boolean[];
 	rows: StatLine[];
