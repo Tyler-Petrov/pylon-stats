@@ -42,7 +42,9 @@ export const getLeaders = query(
 	({ category, sort, season }) => espn.leaders(category, sort, season)
 );
 
-export const search = query(z.string().trim().min(2).max(40), (text) => espn.search(text));
+export const getSearchResults = query(z.string().trim().min(2).max(40), (text) =>
+	espn.search(text)
+);
 
 /** A week of games. Leave both out for the current week. */
 export const getScoreboard = query(

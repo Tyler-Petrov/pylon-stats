@@ -6,7 +6,6 @@
 	import { searchOf } from '#lib/query.js';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import Results from '#lib/components/search-results.svelte';
-	import { Spinner } from '#lib/components/ui/spinner/index.js';
 
 	// What's searched for is in the address (`?q=mahomes`), so coming back from a result finds the list
 	// still there. The box itself is ahead of it by a pause in the typing.
@@ -57,13 +56,9 @@
 	</form>
 
 	{#if query}
+		<!-- No `pending` here: the route's load has the results before the page shows them (+page.ts). -->
 		<svelte:boundary>
 			<Results {query} />
-			{#snippet pending()}
-				<div class="flex justify-center py-16">
-					<Spinner class="size-6 text-muted-foreground" />
-				</div>
-			{/snippet}
 			{#snippet failed(error, reset)}
 				<div class="flex flex-col items-center gap-3 py-16 text-center">
 					<p class="text-muted-foreground">

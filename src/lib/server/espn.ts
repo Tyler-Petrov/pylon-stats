@@ -791,6 +791,14 @@ export async function career(id: string): Promise<StatTable[]> {
 		}));
 }
 
+/** The playoff rounds by ESPN's week number. Week 4 is the Pro Bowl. */
+const PLAYOFF_ROUNDS: Record<number, string> = {
+	1: 'Wild Card',
+	2: 'Divisional',
+	3: 'Conf. Champ.',
+	5: 'Super Bowl'
+};
+
 /** The games of one of the player's seasons. Leave the season out for the latest one they played in. */
 export async function gameLog(id: string, season?: number): Promise<GameLog> {
 	// Kept as the tables themselves: the response is some 90 KB of links for a few hundred numbers.
@@ -818,8 +826,11 @@ export async function gameLog(id: string, season?: number): Promise<GameLog> {
 									rows: [
 										...c.events.map((e: Json): StatLine => {
 											const game = data.events?.[e.eventId];
+											// A playoff game's week is its round: week 5 is the Super Bowl.
+											const when =
+												(c.splitType === '3' && PLAYOFF_ROUNDS[game?.week]) || `Wk ${game?.week}`;
 											const label = game
-												? `Wk ${game.week} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
+												? `${when} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
 												: '';
 											return { label, values: e.stats, gameId: String(e.eventId) };
 										}),

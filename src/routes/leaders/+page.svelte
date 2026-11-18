@@ -99,7 +99,8 @@
 						<th scope="col" class="sticky left-0 z-10 bg-card px-4 py-2.5 text-left font-medium">
 							Player
 						</th>
-						<!-- Each heading sorts the table by its column, most first. -->
+						<!-- Each heading sorts the table by its column, most first. A sort is only fetched once it's
+						     picked: a pointer crossing the row would otherwise ask ESPN for every column it passes. -->
 						{#each leaders.columns as column (column.key)}
 							{@const sorted = column.key === leaders.sort}
 							<th
@@ -114,6 +115,7 @@
 										season: leaders.season
 									})}
 									title={column.long}
+									data-sveltekit-preload-data="tap"
 									data-sveltekit-reset="false"
 									data-sveltekit-replacestate
 									class={cn(

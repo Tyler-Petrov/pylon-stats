@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { search } from '#lib/nfl.remote.js';
+	import { getSearchResults } from '#lib/nfl.remote.js';
 	import Headshot from './headshot.svelte';
 	import TeamLogo from './team-logo.svelte';
 
 	let { query }: { query: string } = $props();
 
-	const results = $derived(await search(query));
+	const results = $derived(await getSearchResults(query));
 </script>
 
 {#if results.teams.length}
@@ -50,7 +50,7 @@
 						</p>
 					</div>
 					{#if player.jersey}
-						<span class="stat text-lg font-semibold text-team">#{player.jersey}</span>
+						<span class="stat text-lg font-semibold text-muted-foreground">#{player.jersey}</span>
 					{/if}
 				</a>
 			{/each}
