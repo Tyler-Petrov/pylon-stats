@@ -98,7 +98,7 @@
 										class="border-b border-border bg-[color-mix(in_oklab,var(--conference)_7%,var(--card))] text-xs text-muted-foreground"
 									>
 										<th
-											class="truncate px-2.5 py-2.5 text-left font-display text-base font-bold tracking-wide text-foreground uppercase @min-[30rem]:px-4"
+											class="truncate px-2.5 py-2.5 text-left font-display text-base font-bold tracking-wide text-foreground uppercase @min-[30rem]:px-3 @min-[54rem]:px-4"
 										>
 											{division.name}
 										</th>
@@ -126,23 +126,25 @@
 											<td class="p-0!">
 												<a
 													href={resolve('/teams/[id=id]', { id: row.team.id })}
-													class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:gap-2 @min-[30rem]:px-4 @min-[54rem]:gap-2.5"
+													class="flex min-w-0 items-center gap-1.5 px-2.5 py-2 font-sans -outline-offset-2 hover:underline @min-[30rem]:px-3 @min-[54rem]:gap-2.5 @min-[54rem]:px-4"
 												>
 													<TeamLogo team={row.team} class="size-6 shrink-0" />
 													<!-- The full name where there's room for it, the nickname in narrower tables, the abbreviation on phones. -->
-													<span class="hidden truncate @min-[54rem]:inline">{row.team.name}</span>
-													<span class="hidden truncate @min-[30rem]:inline @min-[54rem]:hidden"
+													<span class="hidden truncate @min-[55rem]:inline">{row.team.name}</span>
+													<span class="hidden truncate @min-[30rem]:inline @min-[55rem]:hidden"
 														>{row.team.nickname}</span
 													>
 													<span class="@min-[30rem]:hidden">{row.team.abbreviation}</span>
+													<!-- Past phone widths every seed is padded like the playoff chip, so a team moving into the playoffs
+													     doesn't change the row's width. (Phones skip that for lack of room.) -->
 													{#if row.seed}
 														<span
 															title={playoff ? `Playoff seed ${row.seed}` : `Seed ${row.seed}`}
 															class={cn(
-																'shrink-0 stat text-xs',
+																'shrink-0 rounded stat text-xs',
 																playoff
-																	? 'rounded bg-turf/15 px-1.5 text-turf'
-																	: 'text-muted-foreground'
+																	? 'bg-turf/15 px-1.5 text-turf'
+																	: 'text-muted-foreground @min-[30rem]:px-1.5'
 															)}
 														>
 															{row.seed}
