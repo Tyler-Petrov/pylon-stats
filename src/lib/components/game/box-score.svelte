@@ -16,8 +16,9 @@
 </script>
 
 <section aria-labelledby="box-score">
-	<div class="mb-3 flex flex-wrap items-end justify-between gap-3">
-		<h2 id="box-score" class="text-2xl">Box score</h2>
+	<!-- The page's own tab says "Box score" (routes/games/[id]), so the heading is only for a screen reader. -->
+	<h2 id="box-score" class="sr-only">Box score</h2>
+	<div class="mb-4 flex">
 		<div role="group" aria-label="Team" class="flex gap-1 rounded-full border border-border p-1">
 			{#each game.boxScore as side (side.team.id)}
 				{@const active = side === shown}

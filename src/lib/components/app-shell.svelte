@@ -5,6 +5,8 @@
 	import Trophy from '@lucide/svelte/icons/trophy';
 	import Shield from '@lucide/svelte/icons/shield';
 	import ListOrdered from '@lucide/svelte/icons/list-ordered';
+	import ChartColumn from '@lucide/svelte/icons/chart-no-axes-column';
+	import Search from '@lucide/svelte/icons/search';
 	import { cn } from '#lib/utils.js';
 	import { indicator } from '#lib/motion.js';
 	import Wordmark from './wordmark.svelte';
@@ -20,7 +22,9 @@
 		{ href: resolve('/'), label: 'Scores', icon: Trophy },
 		// Hidden: Standings lists every team too, so this page is out of the nav for now. The route still works.
 		{ href: resolve('/teams'), label: 'Teams', icon: Shield, hidden: true },
-		{ href: resolve('/standings'), label: 'Standings', icon: ListOrdered }
+		{ href: resolve('/standings'), label: 'Standings', icon: ListOrdered },
+		{ href: resolve('/leaders'), label: 'Leaders', icon: ChartColumn },
+		{ href: resolve('/search'), label: 'Search', icon: Search }
 	].filter((tab) => !tab.hidden);
 
 	// The tab being navigated to lights up on click, not when its page has rendered.
@@ -83,7 +87,7 @@
 	<nav
 		aria-label="Main"
 		data-sveltekit-preload-code="eager"
-		class="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4.5rem+env(safe-area-inset-bottom))] grid-cols-2 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur [view-transition-name:tabbar] md:hidden"
+		class="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4.5rem+env(safe-area-inset-bottom))] auto-cols-fr grid-flow-col border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur [view-transition-name:tabbar] md:hidden"
 	>
 		{#each tabs as tab (tab.href)}
 			{@const active = isActive(tab.href)}

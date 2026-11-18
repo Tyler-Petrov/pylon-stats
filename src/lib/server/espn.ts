@@ -5,16 +5,21 @@ import type {
 	BoxScoreTable,
 	Conference,
 	DepthUnit,
+	Drive,
 	Game,
 	GameDetail,
+	GameLog,
 	GameSide,
 	GameState,
+	Leaders,
 	Player,
 	PlayerDetail,
 	Roster,
 	Scoreboard,
+	SearchResults,
 	StandingRow,
 	StatLine,
+	StatTable,
 	Team,
 	TeamDetail,
 	TeamStats
@@ -23,7 +28,8 @@ import type {
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
 const STANDINGS = 'https://site.api.espn.com/apis/v2/sports/football/nfl/standings';
 // site.web.api.espn.com serves the same athlete API but refuses every request from Cloudflare's IPs.
-const ATHLETES = 'https://site.api.espn.com/apis/common/v3/sports/football/nfl/athletes';
+const COMMON = 'https://site.api.espn.com/apis/common/v3';
+const ATHLETES = `${COMMON}/sports/football/nfl/athletes`;
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -54,6 +60,8 @@ async function request(url: string): Promise<Json> {
 		const response = await fetch(url, { headers: HEADERS }).catch(() => null);
 		if (response?.ok) return response.json();
 		if (response?.status === 404) error(404, 'Not found');
+		// A sort or filter ESPN doesn't have. Asking again won't change its mind.
+		if (response?.status === 400) error(400, 'ESPN turned the request down');
 		await response?.body?.cancel();
 		status = response?.status ?? 0;
 		if (response && status !== 403 && status !== 429 && status < 500) break;
@@ -68,13 +76,21 @@ async function request(url: string): Promise<Json> {
  * The last good response for each URL is kept for a day, and served when ESPN fails: a slightly old page
  * beats an error page. It's capped, oldest first, since a Worker only gets 128 MB. A fallback
  * is only cached briefly, so ESPN gets asked again soon rather than after the URL's full TTL.
+ *
+ * `trim` cuts a response down to what the app reads before it's kept: fifty league leaders come as 750 KB
+ * of JSON, nearly all of it logos and links. `keep: false` is for URLs nobody asks for twice in a day
+ * (a search), which would only push better fallbacks out.
  */
 const cache = new Map<string, { expires: number; value: Promise<Json> }>();
 const lastGood = new Map<string, { until: number; data: Json }>();
 const LAST_GOOD_MAX = 200;
 const FALLBACK_TTL = 30 * SECOND;
 
-function get(url: string, ttl: number): Promise<Json> {
+function get(
+	url: string,
+	ttl: number,
+	{ trim, keep = true }: { trim?: (data: Json) => Json; keep?: boolean } = {}
+): Promise<Json> {
 	const now = Date.now();
 	const hit = cache.get(url);
 	if (hit && hit.expires > now) return hit.value;
@@ -83,7 +99,9 @@ function get(url: string, ttl: number): Promise<Json> {
 		for (const [key, entry] of cache) if (entry.expires <= now) cache.delete(key);
 
 	const value = request(url).then(
-		(data) => {
+		(response) => {
+			const data = trim ? trim(response) : response;
+			if (!keep) return data;
 			lastGood.delete(url);
 			lastGood.set(url, { until: Date.now() + DAY, data });
 			if (lastGood.size > LAST_GOOD_MAX) lastGood.delete(lastGood.keys().next().value!);
@@ -392,6 +410,49 @@ export async function game(id: string): Promise<GameDetail> {
 	};
 }
 
+/** Every drive of a game, first to last. It reads the summary `game` does, so it costs ESPN nothing more. */
+export async function plays(id: string): Promise<Drive[]> {
+	const data = await get(`${SITE}/summary?event=${id}`, 20 * SECOND);
+	const teamsById = new Map<string, Team>(
+		data.header.competitions[0].competitors.map((c: Json) => [String(c.team.id), mapTeam(c.team)])
+	);
+	// While a game is on, the drive in progress comes on its own, and sometimes among the finished ones too.
+	const drives: Json[] = [...(data.drives?.previous ?? [])];
+	const current = data.drives?.current;
+	if (current && !drives.some((d) => d.id === current.id)) drives.push(current);
+
+	let away = 0;
+	let home = 0;
+	return drives.map((d) => {
+		const all: Json[] = d.plays ?? [];
+		// A drive without a play yet leaves the score where the last one did.
+		away = all.at(-1)?.awayScore ?? away;
+		home = all.at(-1)?.homeScore ?? home;
+		return {
+			id: String(d.id),
+			team: teamsById.get(String(d.team?.id)) ?? null,
+			period: d.start?.period?.number ?? all[0]?.period?.number ?? 0,
+			result: d.displayResult ?? null,
+			scored: Boolean(d.isScore),
+			summary: d.description ?? '',
+			away,
+			home,
+			plays: all.map((p) => {
+				const down: string | undefined = p.start?.downDistanceText;
+				return {
+					id: String(p.id),
+					period: p.period?.number ?? 0,
+					clock: p.clock?.displayValue ?? '',
+					// A timeout between downs comes as " & Goal at LAR 15", with no down to its name.
+					down: down && /^\d/.test(down) ? down : null,
+					text: p.text ?? '',
+					scoring: Boolean(p.scoringPlay)
+				};
+			})
+		};
+	});
+}
+
 /* Standings */
 
 /** The red and navy of the conference shields. ESPN doesn't send these. */
@@ -670,9 +731,6 @@ export async function player(id: string): Promise<PlayerDetail> {
 	]);
 	const a = bio.athlete;
 	const season = overview.statistics;
-	const log = overview.gameLog;
-	// A player who hasn't played this season still gets a game log, just without any games in it.
-	const logStats = log?.statistics?.find((c: Json) => c.events?.length);
 	return {
 		id: String(a.id),
 		name: a.displayName,
@@ -700,19 +758,263 @@ export async function player(id: string): Promise<PlayerDetail> {
 						.filter((s: Json) => s.displayName !== 'Projected')
 						.map((s: Json): StatLine => ({ label: s.displayName, values: s.stats }))
 				}
-			: null,
-		gameLog: logStats
-			? {
-					title: logStats.displayName,
-					labels: logStats.labels,
-					rows: logStats.events.map((e: Json): StatLine => {
-						const game = log.events?.[e.eventId];
-						const label = game
-							? `Wk ${game.week} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
-							: '';
-						return { label, values: e.stats, gameId: String(e.eventId) };
-					})
-				}
 			: null
+	};
+}
+
+/** A table for each kind of stat the player has ("Passing", "Rushing"): a row per season, then the career. */
+export async function career(id: string): Promise<StatTable[]> {
+	const [data, all] = await Promise.all([
+		// ESPN has no stats page at all for a player without any: a rookie lineman, a coach.
+		get(`${ATHLETES}/${id}/stats`, HOUR).catch((failure) => {
+			if (isHttpError(failure, 404)) return null;
+			throw failure;
+		}),
+		teams()
+	]);
+	const abbreviations = new Map(all.map((t) => [t.id, t.abbreviation]));
+	return (data?.categories ?? [])
+		.filter((c: Json) => c.statistics?.length)
+		.map((c: Json): StatTable => ({
+			title: c.displayName,
+			labels: c.labels,
+			rows: [
+				// A season split between two teams is a row for each.
+				...c.statistics.map((s: Json) => ({
+					label: [s.season?.displayName, abbreviations.get(String(s.teamId))]
+						.filter(Boolean)
+						.join(' '),
+					values: s.stats
+				})),
+				...(c.totals?.length ? [{ label: 'Career', values: c.totals, total: true }] : [])
+			]
+		}));
+}
+
+/** The games of one of the player's seasons. Leave the season out for the latest one they played in. */
+export async function gameLog(id: string, season?: number): Promise<GameLog> {
+	// Kept as the tables themselves: the response is some 90 KB of links for a few hundred numbers.
+	return get(`${ATHLETES}/${id}/gamelog${season ? `?season=${season}` : ''}`, 10 * MINUTE, {
+		trim: (data): GameLog => {
+			const seasons = data.filters?.find((f: Json) => f.name === 'season');
+			const labels: string[] = data.labels ?? [];
+			// The columns run passing first, then rushing, and so on, with some labels ("YDS") in more than one.
+			const groups = (data.categories ?? []).map((c: Json) => ({
+				label: c.displayName,
+				span: c.count
+			}));
+			return {
+				season: Number(seasons?.value) || (season ?? 0),
+				seasons: (seasons?.options ?? []).map((o: Json) => Number(o.value)),
+				// A player with no stats to his name (a lineman) has games but no columns.
+				tables: labels.length
+					? (data.seasonTypes ?? []).flatMap((type: Json) =>
+							(type.categories ?? [])
+								.filter((c: Json) => c.type === 'event' && c.events?.length)
+								.map((c: Json): StatTable => ({
+									title: type.displayName,
+									labels,
+									groups,
+									rows: [
+										...c.events.map((e: Json): StatLine => {
+											const game = data.events?.[e.eventId];
+											const label = game
+												? `Wk ${game.week} ${game.atVs === '@' ? '@' : 'vs'} ${game.opponent.abbreviation} · ${game.gameResult} ${game.score}`
+												: '';
+											return { label, values: e.stats, gameId: String(e.eventId) };
+										}),
+										...(c.totals?.length ? [{ label: 'Total', values: c.totals, total: true }] : [])
+									]
+								}))
+						)
+					: []
+			};
+		}
+	});
+}
+
+/* League leaders */
+
+/**
+ * The kinds of leader, each with ESPN's filter for who's in the table, the stat groups whose columns it shows and
+ * the column it sorts by to begin with. A group is spelled as ESPN's `sort` wants it; the response has it in
+ * lower case.
+ */
+const LEADERS: Record<string, { label: string; filter: string; groups: string[]; sort: string }> = {
+	passing: {
+		label: 'Passing',
+		filter: 'offense:passing',
+		groups: ['passing'],
+		sort: 'passing.passingYards'
+	},
+	rushing: {
+		label: 'Rushing',
+		filter: 'offense:rushing',
+		groups: ['rushing'],
+		sort: 'rushing.rushingYards'
+	},
+	receiving: {
+		label: 'Receiving',
+		filter: 'offense:receiving',
+		groups: ['receiving'],
+		sort: 'receiving.receivingYards'
+	},
+	defense: {
+		label: 'Defense',
+		filter: 'defense',
+		groups: ['defensive', 'defensiveInterceptions'],
+		sort: 'defensive.totalTackles'
+	},
+	scoring: {
+		label: 'Scoring',
+		filter: 'scoring',
+		groups: ['scoring'],
+		sort: 'scoring.totalPoints'
+	},
+	kicking: {
+		label: 'Kicking',
+		filter: 'specialTeams:kicking',
+		groups: ['kicking'],
+		sort: 'kicking.fieldGoalsMade'
+	},
+	punting: {
+		label: 'Punting',
+		filter: 'specialTeams:punting',
+		groups: ['punting'],
+		sort: 'punting.grossAvgPuntYards'
+	},
+	returning: {
+		label: 'Returns',
+		filter: 'specialTeams:returning',
+		groups: ['returning'],
+		sort: 'returning.kickReturnYards'
+	}
+};
+
+const LEADERS_SHOWN = 50;
+/** ESPN has every table for 1999 and none for 1990; 2000 is a round place to stop. */
+const FIRST_SEASON = 2000;
+
+/**
+ * The top fifty of one regular season. An unknown category gets passing, and a sort from another category gets
+ * this one's own, so a hand-edited address still lands on a table.
+ */
+export async function leaders(category?: string, sort?: string, season?: number): Promise<Leaders> {
+	const key = category && Object.hasOwn(LEADERS, category) ? category : 'passing';
+	const config = LEADERS[key];
+	const groups = ['general', ...config.groups];
+	const sorted = sort && groups.includes(sort.split('.')[0]) ? sort : config.sort;
+	const params = new URLSearchParams({
+		category: config.filter,
+		sort: `${sorted}:desc`,
+		seasontype: '2',
+		limit: String(LEADERS_SHOWN)
+	});
+	if (season) params.set('season', String(season));
+
+	const [data, all] = await Promise.all([
+		// Kept as the table itself: fifty leaders come as 750 KB of JSON, nearly all of it logos and links.
+		get(`${COMMON}/sports/football/nfl/statistics/byathlete?${params}`, 10 * MINUTE, {
+			trim: (data) => {
+				const columns = groups.flatMap((group) => {
+					const c = data.categories?.find((c: Json) => c.name === group.toLowerCase());
+					// Of the general numbers, only games played belongs in every table.
+					const names: string[] = group === 'general' ? ['gamesPlayed'] : (c?.names ?? []);
+					return names.flatMap((name) => {
+						const i: number = c?.names?.indexOf(name) ?? -1;
+						if (i === -1) return [];
+						const column = {
+							key: `${group}.${name}`,
+							short: c.labels[i],
+							long: c.displayNames?.[i] ?? c.labels[i]
+						};
+						return [{ column, group: c.name, i }];
+					});
+				});
+				return {
+					current: data.currentSeason?.year,
+					season: data.requestedSeason?.year,
+					columns: columns.map((c) => c.column),
+					rows: (data.athletes ?? []).map((entry: Json, i: number) => ({
+						rank: i + 1,
+						player: {
+							id: String(entry.athlete.id),
+							name: entry.athlete.displayName,
+							position: entry.athlete.position?.abbreviation ?? null,
+							headshot: entry.athlete.headshot?.href ?? null
+						},
+						teamId: entry.athlete.teamId ? String(entry.athlete.teamId) : null,
+						values: columns.map(
+							(c) => entry.categories?.find((g: Json) => g.name === c.group)?.totals?.[c.i] ?? '-'
+						)
+					}))
+				};
+			}
+		}),
+		teams()
+	]);
+	const byId = new Map(all.map((t) => [t.id, t]));
+	// A season ESPN has nothing for answers without saying which season is the current one.
+	const current: number = data.current ?? season ?? new Date().getFullYear();
+	return {
+		category: key,
+		categories: Object.entries(LEADERS).map(([key, { label }]) => ({ key, label })),
+		season: data.season ?? season ?? current,
+		seasons: Array.from({ length: Math.max(1, current - FIRST_SEASON + 1) }, (_, i) => current - i),
+		sort: sorted,
+		columns: data.columns,
+		rows: data.rows.map(({ teamId, ...row }: Json) => ({
+			...row,
+			team: byId.get(teamId) ?? null
+		}))
+	};
+}
+
+/* Search */
+
+/** Teams by name, city or abbreviation, and ESPN's own search for players. It only knows active players. */
+export async function search(query: string): Promise<SearchResults> {
+	const q = query.trim().toLowerCase();
+	const params = new URLSearchParams({
+		query: q,
+		type: 'player',
+		sport: 'football',
+		league: 'nfl',
+		limit: '12'
+	});
+	const [all, found] = await Promise.all([
+		teams(),
+		get(`${COMMON}/search?${params}`, 10 * MINUTE, {
+			keep: false,
+			trim: (data) =>
+				(data.items ?? [])
+					// Coaches come back as players, with a position of "Unknown" and no player page to go to.
+					.filter((item: Json) => item.type === 'player' && item.position?.leaf)
+					.map((item: Json) => ({
+						id: String(item.id),
+						name: item.displayName,
+						position: item.position.abbreviation ?? null,
+						jersey: item.jersey ?? null,
+						headshot: item.headshot?.href ?? null,
+						teamId: String(item.teamRelationships?.[0]?.core?.id ?? '')
+					}))
+		})
+	]);
+	const byId = new Map(all.map((t) => [t.id, t]));
+	return {
+		// "kc", "kansas", "chiefs", or the start of any of them.
+		teams: all.filter(
+			(t) =>
+				t.abbreviation.toLowerCase() === q ||
+				t.name.toLowerCase().startsWith(q) ||
+				t.name
+					.toLowerCase()
+					.split(' ')
+					.some((word) => word.startsWith(q))
+		),
+		players: found.map(({ teamId, ...player }: Json) => ({
+			...player,
+			team: byId.get(teamId) ?? null
+		}))
 	};
 }

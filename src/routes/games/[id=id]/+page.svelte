@@ -3,10 +3,12 @@
 	import { getGame } from '#lib/nfl.remote.js';
 	import { gameDay, kickoff, period } from '#lib/format.js';
 	import { cn } from '#lib/utils.js';
-	import { duration } from '#lib/motion.js';
+	import { duration, indicator } from '#lib/motion.js';
 	import { fly } from 'svelte/transition';
 	import TeamLogo from '#lib/components/team-logo.svelte';
+	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import BoxScore from '#lib/components/game/box-score.svelte';
+	import Plays from '#lib/components/game/plays.svelte';
 	import Scoring from '#lib/components/game/scoring.svelte';
 	import TeamStats from '#lib/components/game/team-stats.svelte';
 	import type { GameSide } from '#lib/types.js';
@@ -39,6 +41,15 @@
 		timer = setTimeout(tick, next());
 		return () => clearTimeout(timer);
 	});
+
+	// The box score and the play-by-play share the wide column, one at a time. The plays are only asked for
+	// once they're wanted.
+	const views = [
+		{ key: 'box', label: 'Box score' },
+		{ key: 'plays', label: 'Play-by-play' }
+	] as const;
+	let view = $state<(typeof views)[number]['key']>('box');
+	const [send, receive] = indicator();
 
 	// Every period that's been played, at least the four quarters.
 	const periods = $derived(Math.max(4, game.away.linescores.length, game.home.linescores.length));
@@ -210,7 +221,55 @@
 					<Scoring {game} />
 				</aside>
 				<div class="min-w-0">
-					<BoxScore {game} />
+					<div role="group" aria-label="View" class="mb-5 flex gap-1 border-b border-border">
+						{#each views as { key, label } (key)}
+							{@const active = view === key}
+							<button
+								type="button"
+								aria-pressed={active}
+								onclick={() => (view = key)}
+								class={cn(
+									'relative px-3 pb-2 text-base transition-colors',
+									active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+								)}
+							>
+								{label}
+								{#if active}
+									<span
+										in:receive={{ key: 'view' }}
+										out:send={{ key: 'view' }}
+										class="absolute inset-x-0 -bottom-px h-0.5 bg-pylon"
+									></span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+					{#if view === 'box'}
+						<BoxScore {game} />
+					{:else}
+						<svelte:boundary>
+							<Plays {game} />
+							{#snippet pending()}
+								<div class="flex justify-center py-16">
+									<Spinner class="size-6 text-muted-foreground" />
+								</div>
+							{/snippet}
+							{#snippet failed(error, reset)}
+								<div class="flex flex-col items-center gap-3 py-16 text-center">
+									<p class="text-muted-foreground">
+										Couldn't load the plays{error instanceof Error ? `: ${error.message}` : ''}
+									</p>
+									<button
+										type="button"
+										class="text-pylon underline-offset-4 hover:underline"
+										onclick={reset}
+									>
+										Try again
+									</button>
+								</div>
+							{/snippet}
+						</svelte:boundary>
+					{/if}
 				</div>
 			</div>
 		{:else}

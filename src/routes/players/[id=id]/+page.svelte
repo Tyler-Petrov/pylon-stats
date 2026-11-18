@@ -1,60 +1,40 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { getPlayer } from '#lib/nfl.remote.js';
-	import { cn } from '#lib/utils.js';
+	import { getCareer, getGameLog, getPlayer } from '#lib/nfl.remote.js';
+	import { seasonOf } from '#lib/query.js';
 	import { fadeIn } from '#lib/motion.js';
-	import type { StatTable } from '#lib/types.js';
+	import StatTable from '#lib/components/stat-table.svelte';
+	import type { StatTable as Stats } from '#lib/types.js';
 	import type { PageProps } from './$types';
 
 	let { params }: PageProps = $props();
 
 	const player = $derived(await getPlayer(params.id));
+
+	// The season whose games are shown is in the address (`?season=2023`), so a link or the back button keeps
+	// it. Both of these are extra to the page: should one fail, the page carries on without it.
+	const [career, log] = $derived(
+		await Promise.all([
+			getCareer(params.id).catch((): Stats[] => []),
+			getGameLog({ id: params.id, season: seasonOf(page.url) }).catch(() => null)
+		])
+	);
+
+	function pick(season: string) {
+		// The latest season is what the page shows by itself, so it stays out of the address.
+		const here =
+			Number(season) === log?.seasons[0]
+				? resolve('/players/[id=id]', { id: params.id })
+				: resolve(`/players/[id=id]?season=${Number(season)}`, { id: params.id });
+		goto(here, { reset: false });
+	}
 </script>
 
 <svelte:head>
 	<title>{player.name} · Pylon</title>
 </svelte:head>
-
-{#snippet table(stats: StatTable, highlightFirst: boolean)}
-	<section class="mb-8">
-		<h2 class="mb-3 text-2xl">{stats.title}</h2>
-		<div class="overflow-x-auto rounded-xl border border-border bg-card">
-			<table class="w-full text-sm whitespace-nowrap">
-				<thead>
-					<tr class="border-b border-border text-xs text-muted-foreground">
-						<th class="sticky left-0 bg-card px-4 py-2.5 text-left font-medium"></th>
-						{#each stats.labels as label, i (i)}
-							<th class="px-2.5 py-2.5 text-right font-medium">{label}</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody>
-					{#each stats.rows as row, r (r)}
-						<tr
-							class={cn(
-								'border-b border-border last:border-0',
-								highlightFirst && r === 0 && 'text-team'
-							)}
-						>
-							<td class="sticky left-0 bg-card px-4 py-2">
-								{#if row.gameId}
-									<a href={resolve('/games/[id=id]', { id: row.gameId })} class="hover:underline">
-										{row.label}
-									</a>
-								{:else}
-									{row.label}
-								{/if}
-							</td>
-							{#each row.values as value, i (i)}
-								<td class="px-2.5 py-2 text-right stat">{value}</td>
-							{/each}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	</section>
-{/snippet}
 
 <div style:--team={player.team?.color ?? 'var(--pylon)'}>
 	<header
@@ -106,13 +86,54 @@
 		</dl>
 
 		{#if player.season}
-			{@render table(player.season, true)}
+			<section class="mb-8">
+				<h2 class="mb-3 text-2xl">{player.season.title}</h2>
+				<StatTable stats={player.season} highlightFirst />
+			</section>
 		{/if}
-		{#if player.gameLog}
-			{@render table(player.gameLog, false)}
+
+		{#if log?.seasons.length}
+			<section class="mb-8">
+				<div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+					<h2 class="text-2xl">Game log</h2>
+					<label class="flex items-center gap-2 text-sm text-muted-foreground">
+						Season
+						<select
+							value={String(log.season)}
+							onchange={(event) => pick(event.currentTarget.value)}
+							class="rounded-full border border-border bg-card py-1 pr-2 pl-3 stat text-foreground"
+						>
+							{#each log.seasons as season (season)}
+								<option value={String(season)}>{season}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+				<div class="grid gap-6">
+					{#each log.tables as table (table.title)}
+						<StatTable stats={table} titled />
+					{:else}
+						<p class="py-6 text-center text-muted-foreground">No stats in {log.season}.</p>
+					{/each}
+				</div>
+			</section>
+		{:else if !log}
+			<p class="mb-8 text-sm text-muted-foreground">Couldn't load the game log.</p>
 		{/if}
-		{#if !player.season && !player.gameLog}
-			<p class="py-10 text-center text-muted-foreground">No stats yet this season.</p>
+
+		{#if career.length}
+			<section class="mb-8">
+				<h2 class="mb-3 text-2xl">Career</h2>
+				<div class="grid gap-6">
+					{#each career as table (table.title)}
+						<StatTable stats={table} titled />
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if !player.season && !career.length && !log?.tables.length}
+			<p class="py-10 text-center text-muted-foreground">No stats yet.</p>
 		{/if}
 	</div>
 </div>

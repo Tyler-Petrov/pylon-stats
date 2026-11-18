@@ -2,27 +2,13 @@
 	import { resolve } from '$app/paths';
 	import { getRoster } from '#lib/nfl.remote.js';
 	import { cn } from '#lib/utils.js';
-	import { fadeIn } from '#lib/motion.js';
+	import Headshot from '#lib/components/headshot.svelte';
 	import type { Player } from '#lib/types.js';
 
 	let { teamId }: { teamId: string } = $props();
 
 	const roster = $derived(await getRoster(teamId));
 </script>
-
-{#snippet headshot(player: Player, size: string)}
-	<div class={cn('relative shrink-0 overflow-hidden rounded-full bg-muted', size)}>
-		{#if player.headshot}
-			<img
-				src={player.headshot}
-				alt=""
-				loading="lazy"
-				{@attach fadeIn}
-				class="absolute top-0 left-1/2 h-full max-w-none -translate-x-1/2 object-cover"
-			/>
-		{/if}
-	</div>
-{/snippet}
 
 {#snippet injury(player: Player)}
 	{#if player.injury}
@@ -42,7 +28,7 @@
 		href={resolve('/players/[id=id]', { id: player.id })}
 		class="flex items-center gap-3 rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-team/50 hover:bg-team/5"
 	>
-		{@render headshot(player, 'size-12')}
+		<Headshot src={player.headshot} class="size-12" />
 		<div class="min-w-0 flex-1">
 			<p class="truncate font-medium">{player.name}</p>
 			<p class="truncate text-xs text-muted-foreground">
@@ -98,7 +84,7 @@
 								href={resolve('/players/[id=id]', { id: starter.id })}
 								class="flex min-w-0 items-center gap-3 rounded-lg transition-colors hover:text-team"
 							>
-								{@render headshot(starter, 'size-10')}
+								<Headshot src={starter.headshot} />
 								<span class="min-w-0 truncate font-medium">{starter.name}</span>
 								{#if starter.jersey}
 									<span class="-ml-1.5 stat text-sm text-muted-foreground">#{starter.jersey}</span>

@@ -132,9 +132,17 @@ export type StatLine = {
 	values: string[];
 	/** The game a game log row is for. */
 	gameId?: string;
+	/** The row adds up the ones above it: a career, a season. */
+	total?: boolean;
 };
 
-export type StatTable = { title: string; labels: string[]; rows: StatLine[] };
+export type StatTable = {
+	title: string;
+	labels: string[];
+	/** What the columns fall under ("Passing" over the first eleven), when a table mixes kinds of stat. */
+	groups?: { label: string; span: number }[];
+	rows: StatLine[];
+};
 
 export type PlayerDetail = {
 	id: string;
@@ -146,7 +154,48 @@ export type PlayerDetail = {
 	status: string | null;
 	facts: { label: string; value: string }[];
 	season: StatTable | null;
-	gameLog: StatTable | null;
+};
+
+/** A player's games in one season: a table for the regular season and one for the playoffs, latest first. */
+export type GameLog = {
+	season: number;
+	/** Every season the player has games in, latest first. */
+	seasons: number[];
+	tables: StatTable[];
+};
+
+/** A column of a stat table, with the key that sorts by it. */
+export type StatColumn = { key: string; short: string; long: string };
+
+export type LeaderCategory = { key: string; label: string };
+
+/** The league's players in one kind of stat for one regular season, best first by the sorted column. */
+export type Leaders = {
+	category: string;
+	categories: LeaderCategory[];
+	season: number;
+	/** Latest first. */
+	seasons: number[];
+	sort: string;
+	columns: StatColumn[];
+	rows: {
+		rank: number;
+		player: { id: string; name: string; position: string | null; headshot: string | null };
+		team: Team | null;
+		values: string[];
+	}[];
+};
+
+export type SearchResults = {
+	teams: Team[];
+	players: {
+		id: string;
+		name: string;
+		position: string | null;
+		jersey: string | null;
+		headshot: string | null;
+		team: Team | null;
+	}[];
 };
 
 /** One category of a game's box score for one team, "Passing" or "Defense": a row per player. */
@@ -178,4 +227,31 @@ export type GameDetail = Game & {
 		home: number;
 	}[];
 	attendance: number | null;
+};
+
+export type Play = {
+	id: string;
+	period: number;
+	clock: string;
+	/** "1st & 10 at SF 28". Null for a kickoff, a timeout, the end of a quarter. */
+	down: string | null;
+	text: string;
+	scoring: boolean;
+};
+
+/** One possession, and every play in it in the order they happened. */
+export type Drive = {
+	id: string;
+	team: Team | null;
+	/** The quarter it started in. */
+	period: number;
+	/** "Touchdown", "Punt". Null while the drive is still going. */
+	result: string | null;
+	scored: boolean;
+	/** "8 plays, 72 yards, 4:51" */
+	summary: string;
+	/** The score once the drive was over. */
+	away: number;
+	home: number;
+	plays: Play[];
 };
