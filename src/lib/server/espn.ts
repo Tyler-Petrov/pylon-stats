@@ -468,6 +468,26 @@ function mapBoxScoreTable(c: Json): BoxScoreTable {
 	};
 }
 
+/**
+ * The summary has no `situation` while a game is on, only on the scoreboard. Its drive in progress has the same
+ * things, as at the end of its last play, so this builds the scoreboard's shape from that.
+ */
+function driveSituation(drive: Json) {
+	const plays: Json[] = drive?.plays ?? [];
+	const end = plays.at(-1)?.end;
+	if (!end) return undefined;
+	// A timeout says nothing about the game: the play before it is the news, a touchdown say.
+	const play = plays.findLast((p) => !/timeout/i.test(p.type?.text ?? '')) ?? plays.at(-1);
+	// After a score, or at the end of a quarter, there's no down to play and no one has the ball yet.
+	const down = end.down > 0 && end.downDistanceText;
+	return {
+		downDistanceText: down || null,
+		possession: down ? (end.team?.id ?? drive.team?.id) : null,
+		isRedZone: Boolean(down) && end.yardsToEndzone <= 20,
+		lastPlay: { text: play?.text?.trim() }
+	};
+}
+
 export async function game(id: string): Promise<GameDetail> {
 	// Scores move every few seconds while a game is on; the page asks again every 30.
 	const data = await get(`${SITE}/summary?event=${id}`, 20 * SECOND);
@@ -483,7 +503,7 @@ export async function game(id: string): Promise<GameDetail> {
 				...comp,
 				venue: data.gameInfo?.venue,
 				odds: data.pickcenter,
-				situation: comp.situation ?? data.situation
+				situation: comp.situation ?? data.situation ?? driveSituation(data.drives?.current)
 			}
 		]
 	});

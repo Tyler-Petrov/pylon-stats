@@ -9,7 +9,8 @@
 </script>
 
 <section aria-labelledby="scoring">
-	<h2 id="scoring" class="mb-3 text-2xl">Scoring</h2>
+	<!-- The page's own tab says "Scoring" (routes/games/[id]), so the heading is only for a screen reader. -->
+	<h2 id="scoring" class="sr-only">Scoring</h2>
 	<div class="text-sm">
 		{#each quarters as [quarter, plays] (quarter)}
 			<h3

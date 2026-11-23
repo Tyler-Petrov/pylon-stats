@@ -8,7 +8,8 @@
 
 <!-- Away on the left and home on the right, as in the header above. -->
 <section aria-labelledby="team-stats">
-	<h2 id="team-stats" class="mb-3 text-2xl">{game.teamStats.title}</h2>
+	<!-- The page's own tab carries the title (routes/games/[id]), so the heading is only for a screen reader. -->
+	<h2 id="team-stats" class="sr-only">{game.teamStats.title}</h2>
 	<div class="text-sm">
 		<div
 			class="grid grid-cols-[4rem_minmax(0,1fr)_4rem] items-center gap-2 border-b border-border pb-2"
