@@ -468,6 +468,22 @@ function mapBoxScoreTable(c: Json): BoxScoreTable {
 	};
 }
 
+/**
+ * The summary has no `situation` while a game is on, only on the scoreboard. Its drive in progress has the same
+ * things, as at the end of its last play, so this builds the scoreboard's shape from that.
+ */
+function driveSituation(drive: Json) {
+	const play = drive?.plays?.at(-1);
+	if (!play) return undefined;
+	const end = play.end ?? {};
+	return {
+		downDistanceText: end.downDistanceText,
+		possession: end.team?.id ?? drive.team?.id,
+		isRedZone: typeof end.yardsToEndzone === 'number' && end.yardsToEndzone <= 20,
+		lastPlay: { text: play.text?.trim() }
+	};
+}
+
 export async function game(id: string): Promise<GameDetail> {
 	// Scores move every few seconds while a game is on; the page asks again every 30.
 	const data = await get(`${SITE}/summary?event=${id}`, 20 * SECOND);
@@ -483,7 +499,7 @@ export async function game(id: string): Promise<GameDetail> {
 				...comp,
 				venue: data.gameInfo?.venue,
 				odds: data.pickcenter,
-				situation: comp.situation ?? data.situation
+				situation: comp.situation ?? data.situation ?? driveSituation(data.drives?.current)
 			}
 		]
 	});
