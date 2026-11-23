@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { navigating, page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import type { ResolvedPathname } from '$app/types';
 	import { getGame, getPlays } from '#lib/nfl.remote.js';
 	import { gameDay, kickoff, period } from '#lib/format.js';
+	import { gameTabOf, type GameTab } from '#lib/query.js';
 	import { cn } from '#lib/utils.js';
 	import { duration, indicator } from '#lib/motion.js';
 	import { fly, slide } from 'svelte/transition';
@@ -43,17 +46,42 @@
 		return () => clearTimeout(timer);
 	});
 
-	// The box score and the play-by-play share the wide column, one at a time. The plays are only asked for
-	// once they're wanted.
-	const views = [
-		{ key: 'box', label: 'Box score' },
-		{ key: 'plays', label: 'Play-by-play' }
-	] as const;
-	let view = $state<(typeof views)[number]['key']>('box');
-	// The plays come from the drives, not the box score, so a game ESPN has no box score for can still have them.
-	const shownViews = $derived(views.filter(({ key }) => key === 'plays' || game.boxScore.length));
-	const shownView = $derived(game.boxScore.length ? view : 'plays');
+	// Each part of the game has a tab of its own, and the tab is in the address, so it can be linked to and the
+	// back button steps through the ones looked at. A tab with nothing in it yet isn't offered: before kickoff
+	// that's all but the season averages. The plays come from the drives, not the box score, so a game ESPN has
+	// no box score for can still have them. They're only asked for once their tab is picked.
+	const tabs = $derived(
+		(
+			[
+				{ key: 'box', label: 'Box score', shown: game.boxScore.length > 0 },
+				{ key: 'plays', label: 'Play-by-play', shown: game.state !== 'pre' },
+				{ key: 'stats', label: game.teamStats.title, shown: game.teamStats.rows.length > 0 },
+				{ key: 'scoring', label: 'Scoring', shown: game.state !== 'pre' }
+			] satisfies { key: GameTab; label: string; shown: boolean }[]
+		).filter((tab) => tab.shown)
+	);
+	const tabOf = (url: Parameters<typeof gameTabOf>[0]) =>
+		tabs.find(({ key }) => key === gameTabOf(url))?.key ?? tabs[0]?.key;
+	const tab = $derived(tabOf(page.url));
+	// The tab being gone to lights up on the click, not once it has loaded.
+	const picked = $derived(
+		navigating.to?.route.id === page.route.id ? tabOf(navigating.to.url) : tab
+	);
+	/** This game on another tab. The first tab is what the page shows by itself, so it stays out of the address. */
+	function href(key: GameTab): ResolvedPathname {
+		const path = resolve('/games/[id=id]', { id: game.id });
+		// `resolve` takes no query for a route with params, so the tab goes on after it.
+		return key === tabs[0]?.key ? path : (`${path}?tab=${key}` as ResolvedPathname);
+	}
 	const [send, receive] = indicator();
+
+	// The play going on right now, with the team that has the ball.
+	const now = $derived(
+		live && (game.situation?.downDistance || game.situation?.lastPlay) ? game.situation : null
+	);
+	const offense = $derived(
+		[game.away.team, game.home.team].find((team) => team.id === now?.possession) ?? null
+	);
 
 	// Every period that's been played, at least the four quarters.
 	const periods = $derived(Math.max(4, game.away.linescores.length, game.home.linescores.length));
@@ -217,101 +245,134 @@
 					</dl>
 				</div>
 			{/if}
-			{#if live && game.situation?.downDistance}
-				<p
-					class={cn(
-						'mx-auto mt-5 max-w-xl rounded-md bg-muted px-3 py-2 text-center text-sm',
-						game.situation.redZone && 'bg-flag/15 text-flag'
-					)}
-				>
-					{game.situation.downDistance}
-					{#if game.situation.lastPlay}
-						<span class="mt-0.5 block text-muted-foreground">{game.situation.lastPlay}</span>
-					{/if}
-				</p>
-			{/if}
 			{#if facts.length}
 				<p class="mt-5 text-center text-xs text-muted-foreground">{facts.join(' · ')}</p>
 			{/if}
 		</div>
 	</header>
 
-	<div class="page-column grid gap-8 pt-6">
-		{#if game.boxScore.length || game.state !== 'pre'}
-			<!-- On a wide screen the box score takes the room, with the team numbers and the scoring beside it. On a
-			     narrower one, those come first: they're the short version. -->
-			<div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-				<aside class="grid gap-8 lg:order-last">
-					{#if game.teamStats.rows.length}
-						<TeamStats {game} />
-					{/if}
-					<Scoring {game} />
-				</aside>
-				<div class="min-w-0">
-					<div role="group" aria-label="View" class="mb-5 flex gap-1 border-b border-border">
-						{#each shownViews as { key, label } (key)}
-							{@const active = shownView === key}
-							<button
-								type="button"
-								aria-pressed={active}
-								onclick={() => (view = key)}
-								class={cn(
-									'relative px-3 pb-2 text-base transition-colors',
-									active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-								)}
-							>
-								{label}
-								{#if active}
-									<span
-										in:receive={{ key: 'view' }}
-										out:send={{ key: 'view' }}
-										class="absolute inset-x-0 -bottom-px h-0.5 bg-pylon"
-									></span>
-								{/if}
-							</button>
-						{/each}
-					</div>
-					{#if shownView === 'box'}
-						<BoxScore {game} />
-					{:else}
-						<svelte:boundary>
-							<Plays {game} />
-							{#snippet pending()}
-								<div class="flex justify-center py-16">
-									<Spinner class="size-6 text-muted-foreground" />
-								</div>
-							{/snippet}
-							{#snippet failed(error, reset)}
-								<div class="flex flex-col items-center gap-3 py-16 text-center">
-									<p class="text-muted-foreground">
-										Couldn't load the plays{error instanceof Error ? `: ${error.message}` : ''}
-									</p>
-									<!-- A query that failed stays failed until it's asked again. -->
-									<button
-										type="button"
-										class="text-pylon underline-offset-4 hover:underline"
-										onclick={() => {
-											getPlays(params.id).refresh();
-											reset();
-										}}
-									>
-										Try again
-									</button>
-								</div>
-							{/snippet}
-						</svelte:boundary>
+	<div class="page-column pt-6">
+		{#if now}
+			<!-- The play as it happens, above whichever tab is open. It moves on with the score, every 30 seconds. -->
+			<section
+				aria-labelledby="now"
+				class={cn(
+					'mb-6 flex items-start gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3',
+					now.redZone && 'border-flag/40 bg-flag/10'
+				)}
+			>
+				{#if offense}
+					<TeamLogo team={offense} class="mt-0.5 size-8" />
+				{/if}
+				<div class="min-w-0 flex-1 text-sm">
+					<h2
+						id="now"
+						class="flex flex-wrap items-center gap-x-2 font-sans text-sm font-semibold tracking-normal"
+					>
+						<span class="flex items-center gap-1.5 text-xs text-pylon">
+							<span class="size-1.5 rounded-full bg-pylon"></span>
+							Live
+						</span>
+						{#if now.downDistance}
+							<span class={cn(now.redZone && 'text-flag')}>{now.downDistance}</span>
+						{/if}
+						{#if now.redZone}
+							<span class="text-xs font-medium text-flag">Red zone</span>
+						{/if}
+					</h2>
+					{#if now.lastPlay}
+						<!-- Read out as it changes: that's the news. -->
+						<p aria-live="polite" class="mt-1 text-muted-foreground">
+							{#key now.lastPlay}
+								<span class="inline-block" in:fly={{ y: -6, duration: duration(220) }}>
+									<span class="sr-only">Last play:</span>
+									{now.lastPlay}
+								</span>
+							{/key}
+						</p>
 					{/if}
 				</div>
+			</section>
+		{/if}
+
+		{#if tabs.length}
+			<!-- Switching tabs keeps the scroll where it is, and the underline slides across to the tab picked. On a
+			     phone the strip scrolls sideways should it not fit. -->
+			<nav
+				aria-label="Game"
+				class="-mx-4 mb-5 [scrollbar-width:none] overflow-x-auto px-4 md:mx-0 md:px-0"
+			>
+				<div class="flex w-max min-w-full gap-1 border-b border-border">
+					{#each tabs as { key, label } (key)}
+						{@const active = picked === key}
+						<a
+							href={href(key)}
+							aria-current={active ? 'page' : undefined}
+							data-sveltekit-reset="false"
+							class={cn(
+								'relative px-3 pb-2 text-sm whitespace-nowrap transition-colors sm:text-base',
+								active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+							)}
+						>
+							{label}
+							{#if active}
+								<span
+									in:receive={{ key: 'tab' }}
+									out:send={{ key: 'tab' }}
+									class="absolute inset-x-0 -bottom-px h-0.5 bg-pylon"
+								></span>
+							{/if}
+						</a>
+					{/each}
+				</div>
+			</nav>
+		{/if}
+
+		{#if tab === 'box'}
+			<BoxScore {game} />
+		{:else if tab === 'plays'}
+			<div class="max-w-3xl">
+				<svelte:boundary>
+					<Plays {game} />
+					{#snippet pending()}
+						<div class="flex justify-center py-16">
+							<Spinner class="size-6 text-muted-foreground" />
+						</div>
+					{/snippet}
+					{#snippet failed(error, reset)}
+						<div class="flex flex-col items-center gap-3 py-16 text-center">
+							<p class="text-muted-foreground">
+								Couldn't load the plays{error instanceof Error ? `: ${error.message}` : ''}
+							</p>
+							<!-- A query that failed stays failed until it's asked again. -->
+							<button
+								type="button"
+								class="text-pylon underline-offset-4 hover:underline"
+								onclick={() => {
+									getPlays(params.id).refresh();
+									reset();
+								}}
+							>
+								Try again
+							</button>
+						</div>
+					{/snippet}
+				</svelte:boundary>
 			</div>
-		{:else}
-			<div class="mx-auto grid w-full max-w-xl gap-8">
-				{#if game.teamStats.rows.length}
-					<TeamStats {game} />
-				{/if}
-				<p class="text-center text-muted-foreground">
-					The box score fills in once the game kicks off.
-				</p>
+		{:else if tab === 'stats'}
+			<div class="max-w-3xl">
+				<TeamStats {game} />
 			</div>
+		{:else if tab === 'scoring'}
+			<div class="max-w-3xl">
+				<Scoring {game} />
+			</div>
+		{/if}
+
+		{#if game.state === 'pre'}
+			<p class="mt-8 text-center text-muted-foreground">
+				The box score fills in once the game kicks off.
+			</p>
 		{/if}
 	</div>
 </div>

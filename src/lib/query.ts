@@ -18,3 +18,13 @@ export function leadersOf(url: Address) {
 		sort: sort && SORT.test(sort) ? sort : undefined
 	};
 }
+
+/** A game page's tabs, in the order it shows them. */
+export const GAME_TABS = ['box', 'plays', 'stats', 'scoring'] as const;
+export type GameTab = (typeof GAME_TABS)[number];
+
+/** The tab a game page's address asks for: `?tab=plays`. Without one, the page shows its first. */
+export function gameTabOf(url: Address): GameTab | undefined {
+	const tab = url.searchParams.get('tab');
+	return GAME_TABS.find((key) => key === tab);
+}
