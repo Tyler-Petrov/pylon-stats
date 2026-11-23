@@ -473,14 +473,18 @@ function mapBoxScoreTable(c: Json): BoxScoreTable {
  * things, as at the end of its last play, so this builds the scoreboard's shape from that.
  */
 function driveSituation(drive: Json) {
-	const play = drive?.plays?.at(-1);
-	if (!play) return undefined;
-	const end = play.end ?? {};
+	const plays: Json[] = drive?.plays ?? [];
+	const end = plays.at(-1)?.end;
+	if (!end) return undefined;
+	// A timeout says nothing about the game: the play before it is the news, a touchdown say.
+	const play = plays.findLast((p) => !/timeout/i.test(p.type?.text ?? '')) ?? plays.at(-1);
+	// After a score, or at the end of a quarter, there's no down to play and no one has the ball yet.
+	const down = end.down > 0 && end.downDistanceText;
 	return {
-		downDistanceText: end.downDistanceText,
-		possession: end.team?.id ?? drive.team?.id,
-		isRedZone: typeof end.yardsToEndzone === 'number' && end.yardsToEndzone <= 20,
-		lastPlay: { text: play.text?.trim() }
+		downDistanceText: down || null,
+		possession: down ? (end.team?.id ?? drive.team?.id) : null,
+		isRedZone: Boolean(down) && end.yardsToEndzone <= 20,
+		lastPlay: { text: play?.text?.trim() }
 	};
 }
 
