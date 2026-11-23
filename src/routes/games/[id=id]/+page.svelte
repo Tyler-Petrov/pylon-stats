@@ -53,11 +53,14 @@
 	const picked = $derived(
 		navigating.to?.route.id === page.route.id ? gameTabOf(game, navigating.to.url) : tab
 	);
-	/** This game on another tab. The first tab is what the page shows by itself, so it stays out of the address. */
+	/**
+	 * This game on another tab. Only the box score goes without `?tab=`: a game on before ESPN has any player
+	 * stats opens on its plays, and a bare address would move the reader to the box score once they arrive.
+	 */
 	function href(key: GameTab): ResolvedPathname {
 		const path = resolve('/games/[id=id]', { id: game.id });
 		// `resolve` takes no query for a route with params, so the tab goes on after it.
-		return key === tabs[0]?.key ? path : (`${path}?tab=${key}` as ResolvedPathname);
+		return key === 'box' ? path : (`${path}?tab=${key}` as ResolvedPathname);
 	}
 	const [send, receive] = indicator();
 
@@ -259,6 +262,9 @@
 							<span class="size-1.5 rounded-full bg-pylon"></span>
 							Live
 						</span>
+						{#if offense}
+							<span class="sr-only">Possession: {offense.name}.</span>
+						{/if}
 						{#if now.downDistance}
 							<span class={cn(now.redZone && 'text-flag')}>{now.downDistance}</span>
 						{/if}
