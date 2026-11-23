@@ -4,13 +4,12 @@
 	import type { ResolvedPathname } from '$app/types';
 	import { getGame, getPlays } from '#lib/nfl.remote.js';
 	import { gameDay, kickoff, period } from '#lib/format.js';
-	import { gameTabOf, type GameTab } from '#lib/query.js';
+	import { gameTabOf, gameTabs, type GameTab } from '#lib/query.js';
 	import { cn } from '#lib/utils.js';
 	import { duration, indicator } from '#lib/motion.js';
 	import { fly, slide } from 'svelte/transition';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import TeamLogo from '#lib/components/team-logo.svelte';
-	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import BoxScore from '#lib/components/game/box-score.svelte';
 	import Plays from '#lib/components/game/plays.svelte';
 	import Scoring from '#lib/components/game/scoring.svelte';
@@ -46,26 +45,13 @@
 		return () => clearTimeout(timer);
 	});
 
-	// Each part of the game has a tab of its own, and the tab is in the address, so it can be linked to and the
-	// back button steps through the ones looked at. A tab with nothing in it yet isn't offered: before kickoff
-	// that's all but the season averages. The plays come from the drives, not the box score, so a game ESPN has
-	// no box score for can still have them. They're only asked for once their tab is picked.
-	const tabs = $derived(
-		(
-			[
-				{ key: 'box', label: 'Box score', shown: game.boxScore.length > 0 },
-				{ key: 'plays', label: 'Play-by-play', shown: game.state !== 'pre' },
-				{ key: 'stats', label: game.teamStats.title, shown: game.teamStats.rows.length > 0 },
-				{ key: 'scoring', label: 'Scoring', shown: game.state !== 'pre' }
-			] satisfies { key: GameTab; label: string; shown: boolean }[]
-		).filter((tab) => tab.shown)
-	);
-	const tabOf = (url: Parameters<typeof gameTabOf>[0]) =>
-		tabs.find(({ key }) => key === gameTabOf(url))?.key ?? tabs[0]?.key;
-	const tab = $derived(tabOf(page.url));
+	// Each part of the game has a tab of its own (lib/query.ts), and the tab is in the address, so it can be
+	// linked to and the back button steps through the ones looked at.
+	const tabs = $derived(gameTabs(game));
+	const tab = $derived(gameTabOf(game, page.url));
 	// The tab being gone to lights up on the click, not once it has loaded.
 	const picked = $derived(
-		navigating.to?.route.id === page.route.id ? tabOf(navigating.to.url) : tab
+		navigating.to?.route.id === page.route.id ? gameTabOf(game, navigating.to.url) : tab
 	);
 	/** This game on another tab. The first tab is what the page shows by itself, so it stays out of the address. */
 	function href(key: GameTab): ResolvedPathname {
@@ -303,7 +289,7 @@
 				class="-mx-4 mb-5 [scrollbar-width:none] overflow-x-auto px-4 md:mx-0 md:px-0"
 			>
 				<div class="flex w-max min-w-full gap-1 border-b border-border">
-					{#each tabs as { key, label } (key)}
+					{#each tabs as { key, label, short } (key)}
 						{@const active = picked === key}
 						<a
 							href={href(key)}
@@ -314,7 +300,8 @@
 								active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
 							)}
 						>
-							{label}
+							<span class="sm:hidden">{short}</span>
+							<span class="hidden sm:inline">{label}</span>
 							{#if active}
 								<span
 									in:receive={{ key: 'tab' }}
@@ -331,14 +318,13 @@
 		{#if tab === 'box'}
 			<BoxScore {game} />
 		{:else if tab === 'plays'}
+			<!-- The plays come with the page (see its load), so this boundary only catches a failure and leaves the rest
+			     of the page standing. Svelte 5.57 gets a pending snippet here wrong: while it's mounted, the tab
+			     strip's links keep their old state, even as the underline moves to the new tab. -->
 			<div class="max-w-3xl">
 				<svelte:boundary>
 					<Plays {game} />
-					{#snippet pending()}
-						<div class="flex justify-center py-16">
-							<Spinner class="size-6 text-muted-foreground" />
-						</div>
-					{/snippet}
+
 					{#snippet failed(error, reset)}
 						<div class="flex flex-col items-center gap-3 py-16 text-center">
 							<p class="text-muted-foreground">

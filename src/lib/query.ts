@@ -2,6 +2,8 @@
 // `load` and its page both read it here, so they ask the remote function for exactly the same thing (lib/warm.ts).
 // Anything in the address that makes no sense is as good as left out, so a hand-edited one still shows a page.
 
+import type { GameDetail } from './types.js';
+
 /** A page's address: `page.url`, or the `url` a `load` is given. */
 type Address = { searchParams: { get(name: string): string | null } };
 
@@ -19,12 +21,34 @@ export function leadersOf(url: Address) {
 	};
 }
 
-/** A game page's tabs, in the order it shows them. */
-export const GAME_TABS = ['box', 'plays', 'stats', 'scoring'] as const;
-export type GameTab = (typeof GAME_TABS)[number];
+/** A game page's tabs. */
+export type GameTab = 'box' | 'plays' | 'stats' | 'scoring';
 
-/** The tab a game page's address asks for: `?tab=plays`. Without one, the page shows its first. */
-export function gameTabOf(url: Address): GameTab | undefined {
-	const tab = url.searchParams.get('tab');
-	return GAME_TABS.find((key) => key === tab);
+/**
+ * The tabs a game has something in, in the order the page shows them, each with a shorter name for a phone. Before
+ * kickoff that's only the season averages. The plays come from the drives, not the box score, so a game ESPN has
+ * no box score for can still have them.
+ */
+export function gameTabs(game: GameDetail) {
+	const on = game.state !== 'pre';
+	return (
+		[
+			{ key: 'box', label: 'Box score', short: 'Box score', shown: game.boxScore.length > 0 },
+			{ key: 'plays', label: 'Play-by-play', short: 'Plays', shown: on },
+			{
+				key: 'stats',
+				label: game.teamStats.title,
+				short: on ? 'Team stats' : 'Averages',
+				shown: game.teamStats.rows.length > 0
+			},
+			{ key: 'scoring', label: 'Scoring', short: 'Scoring', shown: on }
+		] satisfies { key: GameTab; label: string; short: string; shown: boolean }[]
+	).filter((tab) => tab.shown);
+}
+
+/** The tab a game page's address asks for, `?tab=plays`. Without one, or one the game hasn't got, its first. */
+export function gameTabOf(game: GameDetail, url: Address): GameTab | undefined {
+	const tabs = gameTabs(game);
+	const asked = url.searchParams.get('tab');
+	return (tabs.find(({ key }) => key === asked) ?? tabs[0])?.key;
 }
