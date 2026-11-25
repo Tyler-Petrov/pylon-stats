@@ -12,8 +12,8 @@
 	import { season } from '#lib/season.svelte.js';
 	import TeamLogo from '#lib/components/team-logo.svelte';
 
-	// The category and the sorted column are in the address, so any table can be linked to and the back button
-	// steps through the ones looked at. The season is the one the whole app is showing (lib/season.svelte.ts).
+	// The category and the sorted column are in the address, so any table can be linked to. Picking one replaces
+	// the history entry rather than adding to it, so going back leaves the page. The season is the one the whole app is showing (lib/season.svelte.ts).
 	const leaders = $derived(await getLeaders({ ...leadersOf(page.url), season: season.picked }));
 
 	/** This page showing something else. What the page shows by itself stays out of the address. */
@@ -58,6 +58,7 @@
 					href={href({ category: tab.key })}
 					aria-current={active ? 'page' : undefined}
 					data-sveltekit-reset="false"
+					data-sveltekit-replacestate
 					class={cn(
 						'relative isolate rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors',
 						active

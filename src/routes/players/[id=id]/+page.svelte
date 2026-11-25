@@ -7,6 +7,7 @@
 	import Games from '#lib/components/player/games.svelte';
 	import StatList from '#lib/components/player/stat-list.svelte';
 	import RollingNumber from '#lib/components/rolling-number.svelte';
+	import BackButton from '#lib/components/back-button.svelte';
 	import type { StatGroup } from '#lib/types.js';
 	import type { PageProps } from './$types';
 
@@ -66,7 +67,10 @@
 		style="background: linear-gradient(120deg, color-mix(in oklab, var(--team) 25%, transparent),
 		transparent 70%)"
 	>
-		<div class="page-column flex items-end gap-5 pt-6 md:pt-10">
+		<div class="page-column pt-3 md:pt-6">
+			<BackButton fallback={resolve('/players')} />
+		</div>
+		<div class="page-column flex items-end gap-5 pt-2 md:pt-4">
 			{#if player.headshot}
 				<!-- ESPN's headshots are all 600×436. Holding that shape keeps the name from jumping across once it loads. -->
 				<img

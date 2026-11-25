@@ -10,6 +10,7 @@
 	import { fly, slide } from 'svelte/transition';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import TeamLogo from '#lib/components/team-logo.svelte';
+	import BackButton from '#lib/components/back-button.svelte';
 	import BoxScore from '#lib/components/game/box-score.svelte';
 	import Plays from '#lib/components/game/plays.svelte';
 	import Scoring from '#lib/components/game/scoring.svelte';
@@ -46,7 +47,7 @@
 	});
 
 	// Each part of the game has a tab of its own (lib/query.ts), and the tab is in the address, so it can be
-	// linked to and the back button steps through the ones looked at.
+	// linked to. Switching tabs replaces the history entry, so going back leaves the game, not the last tab.
 	const tabs = $derived(gameTabs(game));
 	const tab = $derived(gameTabOf(game, page.url));
 	// The tab being gone to lights up on the click, not once it has loaded.
@@ -177,8 +178,9 @@
 		style:background="linear-gradient(100deg, color-mix(in oklab, {game.away.team.color} 28%, transparent),
 		transparent 45%, transparent 55%, color-mix(in oklab, {game.home.team.color} 28%, transparent))"
 	>
-		<div class="page-column pt-6 pb-6 md:pt-10">
-			<p class="mb-4 text-center text-sm text-muted-foreground">
+		<div class="page-column pt-3 pb-6 md:pt-6">
+			<BackButton fallback={resolve('/')} />
+			<p class="mt-1 mb-4 text-center text-sm text-muted-foreground">
 				{#if game.week}Week {game.week} ·{/if}
 				{gameDay(game.date)}
 			</p>
@@ -301,6 +303,7 @@
 							href={href(key)}
 							aria-current={active ? 'page' : undefined}
 							data-sveltekit-reset="false"
+							data-sveltekit-replacestate
 							class={cn(
 								'relative px-3 pb-2 text-sm whitespace-nowrap transition-colors sm:text-base',
 								active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
