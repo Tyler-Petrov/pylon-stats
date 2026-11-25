@@ -1,9 +1,8 @@
 <script lang="ts">
 	import type { ResolvedPathname } from '$app/types';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import { cn } from '#lib/utils.js';
 
-	let { fallback, class: className }: { fallback: ResolvedPathname; class?: string } = $props();
+	let { fallback }: { fallback: ResolvedPathname } = $props();
 
 	// Back to the screen this one was opened from. Tabs replace their history entry rather than add one, so that's
 	// the last screen, not the last tab. Opened straight from a link (or the installed app's first screen), there's
@@ -24,10 +23,7 @@
 <a
 	href={fallback}
 	onclick={back}
-	class={cn(
-		'-ml-2 inline-flex items-center gap-0.5 rounded-lg py-1 pr-2.5 pl-1 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground',
-		className
-	)}
+	class="-ml-2 inline-flex items-center gap-0.5 rounded-lg py-1 pr-2.5 pl-1 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
 >
 	<ChevronLeft class="size-4" />
 	Back
