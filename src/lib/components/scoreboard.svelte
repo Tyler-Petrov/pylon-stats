@@ -78,6 +78,7 @@
 		href={resolve('/weeks/[seasonType=int]/[week=int]', { seasonType: w.seasonType, week: w.week })}
 		aria-current={active ? 'page' : undefined}
 		aria-label={w.label}
+		data-sveltekit-replacestate
 		title={w.label}
 		class={cn(
 			'relative isolate grid h-9 place-items-center rounded-lg stat text-sm transition-colors',

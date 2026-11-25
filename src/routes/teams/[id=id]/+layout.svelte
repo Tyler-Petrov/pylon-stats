@@ -6,6 +6,7 @@
 	import { cn } from '#lib/utils.js';
 	import { fadeIn } from '#lib/motion.js';
 	import Division from '#lib/components/team/division.svelte';
+	import BackButton from '#lib/components/back-button.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { params, children }: LayoutProps = $props();
@@ -51,8 +52,11 @@
 				class="pointer-events-none absolute -top-10 -right-16 size-80 opacity-10 blur-[1px] md:right-0"
 			/>
 		{/key}
+		<div class="relative page-column pt-3 md:pt-6">
+			<BackButton fallback={resolve('/standings')} />
+		</div>
 		<div
-			class="relative page-column flex flex-col gap-5 pt-6 pb-6 md:flex-row md:items-end md:pt-10"
+			class="relative page-column flex flex-col gap-5 pt-2 pb-6 md:flex-row md:items-end md:pt-4"
 		>
 			{#key team.id}
 				<img
@@ -105,7 +109,7 @@
 
 		<div class="min-w-0">
 			<!-- Switching tabs keeps the scroll where it is, and the underline slides across to the tab that was
-			     picked (lib/view-transitions.ts). -->
+			     picked (lib/view-transitions.ts). A tab replaces the history entry, so going back leaves the team. -->
 			<nav aria-label={team.name} class="mb-5 flex gap-1 border-b border-border">
 				{#each tabs as tab (tab.label)}
 					<!-- The tab being gone to, from the click: not once its page has loaded. -->
@@ -114,6 +118,7 @@
 						href={tab.href}
 						aria-current={active ? 'page' : undefined}
 						data-sveltekit-reset="false"
+						data-sveltekit-replacestate
 						class={cn(
 							'relative px-3 pb-2 text-base transition-colors',
 							active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
