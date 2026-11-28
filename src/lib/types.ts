@@ -277,6 +277,38 @@ export type Play = {
 	down: string | null;
 	text: string;
 	scoring: boolean;
+	/** Where it took the ball, for the drive chart. Null for what moves nothing: a timeout, a try, a quarter's end. */
+	path: PlayPath | null;
+};
+
+/**
+ * Where a play took the ball, in yards from the goal line of the team with it on the drive (0) to the one they're
+ * going for (100). Past either goal line is the end zone, out to -10 and 110.
+ */
+export type PlayPath = {
+	kind:
+		| 'run'
+		| 'pass'
+		| 'incomplete'
+		| 'sack'
+		| 'penalty'
+		| 'interception'
+		| 'fumble'
+		| 'punt'
+		| 'kickoff'
+		| 'fieldGoal'
+		| 'other';
+	/** The line of scrimmage, or where a kick was made from. */
+	from: number;
+	/** Where the ball ended up. */
+	to: number;
+	/**
+	 * Where the ball came down: a pass caught or picked off, a kick landing. Null when ESPN doesn't say: a catch
+	 * then goes in one arc from the line of scrimmage. For an incomplete pass it's a guess from "short" or "deep".
+	 */
+	landed: number | null;
+	/** A field goal that missed, or a fumble the other side recovered. */
+	failed: boolean;
 };
 
 /** One possession, and every play in it in the order they happened. */

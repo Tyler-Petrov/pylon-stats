@@ -5,6 +5,7 @@
 	import { period } from '#lib/format.js';
 	import { cn } from '#lib/utils.js';
 	import TeamLogo from '#lib/components/team-logo.svelte';
+	import DriveChart, { charted, colorOf } from '#lib/components/game/drive-chart.svelte';
 	import type { GameDetail } from '#lib/types.js';
 
 	let { game }: { game: GameDetail } = $props();
@@ -49,6 +50,14 @@
 		if (open === (drive === playing)) chosen.delete(drive);
 		else chosen.set(drive, open);
 	}
+
+	// An open drive draws itself on the field. The plays it draws are numbered, there and in the list, and
+	// pointing at one in either picks it out in both.
+	const teams = $derived([game.away.team, game.home.team]);
+	const numbers = $derived(
+		new Map(drives.flatMap((drive) => charted(drive).map((play, i) => [play.id, i + 1] as const)))
+	);
+	let pointing = $state<string | null>(null);
 </script>
 
 <section aria-labelledby="plays">
@@ -62,8 +71,10 @@
 			</h3>
 			{#each list as drive (drive.id)}
 				<!-- One drive: how it ended and the score after it. Open it for every play. -->
+				{@const open = chosen.get(drive.id) ?? drive.id === playing}
+				{@const defense = teams.find((team) => team.id !== drive.team?.id)}
 				<details
-					open={chosen.get(drive.id) ?? drive.id === playing}
+					{open}
 					ontoggle={(event) => toggled(drive.id, event.currentTarget.open)}
 					class="group border-b border-border last:border-0"
 				>
@@ -95,9 +106,29 @@
 							class="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
 						/>
 					</summary>
+					{#if open && drive.team && defense && drive.plays.some((p) => p.path)}
+						<div class="border-t border-border/60 py-3">
+							<DriveChart drive={{ ...drive, team: drive.team }} {defense} bind:active={pointing} />
+						</div>
+					{/if}
 					<ol class="border-t border-border/60">
 						{#each drive.plays as play (play.id)}
-							<li class="border-b border-border/60 py-2 pl-9 last:border-0">
+							{@const n = numbers.get(play.id)}
+							<li
+								class={cn(
+									'relative border-b border-border/60 py-2 pl-9 transition-colors last:border-0',
+									n && pointing === play.id && 'bg-foreground/5'
+								)}
+								onpointerenter={() => (pointing = n ? play.id : null)}
+								onpointerleave={() => (pointing = null)}
+							>
+								{#if n && play.path}
+									<!-- The play's number on the field above. -->
+									<span
+										class="absolute top-2 left-1.5 grid size-5 place-items-center rounded-full font-mono text-[0.6rem] font-semibold text-background"
+										style:background={colorOf(play.path)}>{n}</span
+									>
+								{/if}
 								<p class="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
 									<span class="stat"
 										>{play.period <= 4 ? 'Q' : ''}{period(play.period)} {play.clock}</span
