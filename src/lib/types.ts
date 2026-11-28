@@ -300,7 +300,7 @@ export type PlayPath = {
 		| 'other';
 	/** The line of scrimmage, or where a kick was made from. */
 	from: number;
-	/** Where the ball ended up. */
+	/** Where the ball ended up: for a touchback, where it was downed in the end zone. */
 	to: number;
 	/**
 	 * Where the ball came down: a pass caught or picked off, a kick landing. Null when ESPN doesn't say: a catch

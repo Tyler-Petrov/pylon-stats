@@ -175,16 +175,14 @@
 				const to = landed ?? x0 + 7;
 				const picked = ball(to, lob(to - x0));
 				out.push({ type: 'miss', ...picked, r: 4.5 * start.k + 1, color });
-				// Picked off in the end zone and downed there: a touchback, not a return.
-				if (to > 10 && to < 110) carry(picked, 0.6, '4 3');
+				carry(picked, 0.6, '4 3');
 				break;
 			}
 			case 'punt':
 			case 'kickoff': {
 				const to = landed ?? x1;
 				const down = ball(to, Math.min(16, Math.abs(to - x0) * 0.3), '1 5');
-				// From an end zone, it's a touchback: the ball is brought out, not run back.
-				if (to > 10 && to < 110) carry(down, 0.6);
+				carry(down, 0.6);
 				break;
 			}
 			case 'fieldGoal': {

@@ -624,6 +624,9 @@ function playPath(p: Json, sides: Sides): PlayPath | null {
 		return Number.isFinite(yards) ? Math.max(-10, Math.min(110, from + away * yards)) : null;
 	};
 
+	// A kick or a pick downed in the end zone ends there. ESPN's end is where the ball is brought out to, which is
+	// where the next play starts, not a return.
+	const touchback = /\btouchback\b/i.test(text);
 	const path = (
 		kind: PlayPath['kind'],
 		landed: number | null = null,
@@ -631,7 +634,10 @@ function playPath(p: Json, sides: Sides): PlayPath | null {
 	): PlayPath => ({
 		kind,
 		from,
-		to,
+		to:
+			touchback && landed != null && ['kickoff', 'punt', 'interception'].includes(kind)
+				? landed
+				: to,
 		landed,
 		failed
 	});
