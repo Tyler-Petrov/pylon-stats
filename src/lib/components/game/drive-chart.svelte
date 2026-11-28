@@ -124,6 +124,8 @@
 	const lob = (yards: number) => Math.min(2 + Math.abs(yards) * 0.42, 0.5 + Math.abs(yards) * 0.6);
 
 	const plays = $derived(charted(drive));
+	// Another open drive's play being pointed at leaves this one alone.
+	const mine = $derived(plays.some((play) => play.id === active));
 	const lane = (i: number) => (plays.length < 2 ? 27 : 45 - (i * 36) / (plays.length - 1));
 
 	function shapes(play: Charted, z: number): Shape[] {
@@ -173,7 +175,8 @@
 				const to = landed ?? x0 + 7;
 				const picked = ball(to, lob(to - x0));
 				out.push({ type: 'miss', ...picked, r: 4.5 * start.k + 1, color });
-				carry(picked, 0.6, '4 3');
+				// Picked off in the end zone and downed there: a touchback, not a return.
+				if (to > 10 && to < 110) carry(picked, 0.6, '4 3');
 				break;
 			}
 			case 'punt':
@@ -253,7 +256,6 @@
 	class="block h-auto w-full select-none"
 	role="img"
 	aria-label="{drive.team.name}: {drive.result ?? 'drive'}, {drive.summary}"
-	onpointerleave={() => (active = null)}
 >
 	<defs>
 		{#each Object.entries(ARROWS) as [key, color] (key)}
@@ -325,8 +327,9 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<g
 			class="transition-opacity duration-150"
-			opacity={active && active !== play.id ? 0.18 : 1}
+			opacity={mine && active !== play.id ? 0.18 : 1}
 			onpointerenter={() => (active = play.id)}
+			onpointerleave={() => (active = null)}
 		>
 			<path d={tick} class="stroke-foreground/50" stroke-width="1.4" />
 			<circle cx={from.x} cy={from.y} r={2.4 * from.k + 0.6} class="fill-foreground" />
