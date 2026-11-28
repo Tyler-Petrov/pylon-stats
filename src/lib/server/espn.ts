@@ -587,14 +587,18 @@ type Sides = { offense: Team; defense: Team; home: boolean };
 
 /**
  * Where a play took the ball, for the drive chart (see PlayPath). ESPN's yard lines run from the home team's goal
- * line, so the away team's are turned round. Older games call every pass a "Pass", so its words decide.
+ * line, so the away team's are turned round.
  */
 function playPath(p: Json, sides: Sides): PlayPath | null {
 	const type = String(p.type?.text ?? '').toLowerCase();
 	const text = String(p.text ?? '');
+	// Older games call every pass a "Pass": only then do its words say what happened. On a newer one the words can
+	// still tell of an interception overturned on review, or a sack the quarterback fumbled on.
+	const generic = type === 'pass';
+	const field = (yards: number) => Math.max(-10, Math.min(110, yards));
 	const at = (line: unknown) => {
 		if (typeof line !== 'number' || !Number.isFinite(line)) return null;
-		return Math.max(-10, Math.min(110, sides.home ? line : 100 - line));
+		return field(sides.home ? line : 100 - line);
 	};
 	const from = at(p.start?.yardLine);
 	const to = at(p.end?.yardLine);
@@ -616,12 +620,12 @@ function playPath(p: Json, sides: Sides): PlayPath | null {
 		return null;
 	};
 	/** How far a pass ESPN gives no catch for went: a guess from how it's described. */
-	const thrown = () => from + (/\bdeep\b/i.test(text) ? 20 : 7);
+	const thrown = () => field(from + (/\bdeep\b/i.test(text) ? 20 : 7));
 	// The side that kicked sends the ball away from its own goal line, whichever drive the kick is filed under.
 	const away = String(p.start?.team?.id ?? '') === sides.defense.id ? -1 : 1;
 	const kicked = (pattern: RegExp) => {
 		const yards = Number(text.match(pattern)?.[1]);
-		return Number.isFinite(yards) ? Math.max(-10, Math.min(110, from + away * yards)) : null;
+		return Number.isFinite(yards) ? field(from + away * yards) : null;
 	};
 
 	// A kick or a pick downed in the end zone ends there. ESPN's end is where the ball is brought out to, which is
@@ -644,14 +648,14 @@ function playPath(p: Json, sides: Sides): PlayPath | null {
 	if (/kickoff/.test(type)) return path('kickoff', kicked(/kicks (-?\d+) yards?/i));
 	if (/punt/.test(type)) return path('punt', kicked(/punts (-?\d+) yards?/i));
 	if (/field goal/.test(type)) return path('fieldGoal', 110, !/good/.test(type));
-	if (/sack/.test(type) || /\bsacked\b/.test(text)) return path('sack');
-	if (/interception/.test(type) || /\bINTERCEPTED\b/.test(text)) {
+	if (/sack/.test(type) || (generic && /\bsacked\b/.test(text))) return path('sack');
+	if (/interception/.test(type) || (generic && /\bINTERCEPTED\b/.test(text))) {
 		return path('interception', spot(/INTERCEPTED by .*? at (?:(\w+) )?(-?\d+)/) ?? thrown());
 	}
 	if (/fumble/.test(type)) return path('fumble', null, Boolean(p.isTurnover));
 	if (/penalty/.test(type)) return path('penalty');
 	if (/pass/.test(type)) {
-		if (/incompletion/.test(type) || /\bincomplete\b/i.test(text))
+		if (/incompletion/.test(type) || (generic && /\bincomplete\b/i.test(text)))
 			return path('incomplete', thrown());
 		// What the catch gained less what came after it is where it was caught: behind the line, for a screen.
 		const after = p.yardsAfterCatch;
