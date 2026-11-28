@@ -15,6 +15,7 @@ import type {
 	Leaders,
 	Player,
 	PlayerDetail,
+	PlayPath,
 	Roster,
 	Scoreboard,
 	SearchResults,
@@ -581,6 +582,89 @@ function follows([away, home]: number[], [toAway, toHome]: number[]) {
 	return (toAway === away && up(home, toHome)) || (toHome === home && up(away, toAway));
 }
 
+/** Who has the ball on a drive, and who they're against: what a play's yard lines are read from. */
+type Sides = { offense: Team; defense: Team; home: boolean };
+
+/**
+ * Where a play took the ball, for the drive chart (see PlayPath). ESPN's yard lines run from the home team's goal
+ * line, so the away team's are turned round.
+ */
+function playPath(p: Json, sides: Sides): PlayPath | null {
+	const type = String(p.type?.text ?? '').toLowerCase();
+	const text = String(p.text ?? '');
+	// Older games call every pass a "Pass": only then do its words say what happened. On a newer one the words can
+	// still tell of an interception overturned on review, or a sack the quarterback fumbled on.
+	const generic = type === 'pass';
+	const field = (yards: number) => Math.max(-10, Math.min(110, yards));
+	const at = (line: unknown) => {
+		if (typeof line !== 'number' || !Number.isFinite(line)) return null;
+		return field(sides.home ? line : 100 - line);
+	};
+	const from = at(p.start?.yardLine);
+	const to = at(p.end?.yardLine);
+	if (from == null || to == null) return null;
+	if (
+		/timeout|end (of|period|quarter)|two-minute|extra point|two-point|conversion|coin/.test(type)
+	) {
+		return null;
+	}
+
+	/** A spot in the words, "at KC -2" or "at 50", in the drive's yards. */
+	const spot = (pattern: RegExp) => {
+		const [, team, yards] = text.match(pattern) ?? [];
+		if (yards == null) return null;
+		const n = Number(yards);
+		if (!team) return n;
+		if (team === sides.offense.abbreviation) return n;
+		if (team === sides.defense.abbreviation) return 100 - n;
+		return null;
+	};
+	/** How far a pass ESPN gives no catch for went: a guess from how it's described. */
+	const thrown = () => field(from + (/\bdeep\b/i.test(text) ? 20 : 7));
+	// The side that kicked sends the ball away from its own goal line, whichever drive the kick is filed under.
+	const away = String(p.start?.team?.id ?? '') === sides.defense.id ? -1 : 1;
+	const kicked = (pattern: RegExp) => {
+		const yards = Number(text.match(pattern)?.[1]);
+		return Number.isFinite(yards) ? field(from + away * yards) : null;
+	};
+
+	// A kick or a pick downed in the end zone ends there. ESPN's end is where the ball is brought out to, which is
+	// where the next play starts, not a return.
+	const touchback = /\btouchback\b/i.test(text);
+	const path = (
+		kind: PlayPath['kind'],
+		landed: number | null = null,
+		failed = false
+	): PlayPath => ({
+		kind,
+		from,
+		to:
+			touchback && landed != null && ['kickoff', 'punt', 'interception'].includes(kind)
+				? landed
+				: to,
+		landed,
+		failed
+	});
+	if (/kickoff/.test(type)) return path('kickoff', kicked(/kicks (-?\d+) yards?/i));
+	if (/punt/.test(type)) return path('punt', kicked(/punts (-?\d+) yards?/i));
+	if (/field goal/.test(type)) return path('fieldGoal', 110, !/good/.test(type));
+	if (/sack/.test(type) || (generic && /\bsacked\b/.test(text))) return path('sack');
+	if (/interception/.test(type) || (generic && /\bINTERCEPTED\b/.test(text))) {
+		return path('interception', spot(/INTERCEPTED by .*? at (?:(\w+) )?(-?\d+)/) ?? thrown());
+	}
+	if (/fumble/.test(type)) return path('fumble', null, Boolean(p.isTurnover));
+	if (/penalty/.test(type)) return path('penalty');
+	if (/pass/.test(type)) {
+		if (/incompletion/.test(type) || (generic && /\bincomplete\b/i.test(text)))
+			return path('incomplete', thrown());
+		// What the catch gained less what came after it is where it was caught: behind the line, for a screen.
+		const after = p.yardsAfterCatch;
+		return path('pass', typeof after === 'number' ? to - after : null);
+	}
+	if (/rush/.test(type)) return path('run');
+	return from === to ? null : path('other');
+}
+
 /** Every drive of a game, first to last. It reads the summary `game` does, so it costs ESPN nothing more. */
 export async function plays(id: string): Promise<Drive[]> {
 	const data = await get(`${SITE}/summary?event=${id}`, 20 * SECOND);
@@ -588,6 +672,7 @@ export async function plays(id: string): Promise<Drive[]> {
 	const teamsById = new Map<string, Team>(
 		competition.competitors.map((c: Json) => [String(c.team.id), mapTeam(c.team)])
 	);
+	const homeId = String(competition.competitors.find((c: Json) => c.homeAway === 'home')?.team.id);
 	// While a game is on, the drive in progress comes on its own, and sometimes among the finished ones too.
 	const drives: Json[] = [...(data.drives?.previous ?? [])];
 	const current = data.drives?.current;
@@ -639,10 +724,13 @@ export async function plays(id: string): Promise<Drive[]> {
 	return drives.map((d, i) => {
 		const all = lists[i];
 		const [away, home] = scores[i];
+		const offense = teamsById.get(String(d.team?.id));
+		const defense = [...teamsById.values()].find((team) => team !== offense);
+		const sides = offense && defense ? { offense, defense, home: offense.id === homeId } : null;
 		const [awayBefore, homeBefore] = scores[i - 1] ?? [0, 0];
 		return {
 			id: String(d.id),
-			team: teamsById.get(String(d.team?.id)) ?? null,
+			team: offense ?? null,
 			// ESPN has sent a drive that started in "quarter 0", with its first play in the 1st.
 			period: d.start?.period?.number || all[0]?.period?.number || 0,
 			result: d.displayResult ?? null,
@@ -666,7 +754,8 @@ export async function plays(id: string): Promise<Drive[]> {
 					down: down && /^\d/.test(down) ? down : null,
 					// The plays of 2005, and some up to 2008, have no words: "Pass", "Timeout" is what's left.
 					text: p.text || p.type?.text || '',
-					scoring: Boolean(p.scoringPlay)
+					scoring: Boolean(p.scoringPlay),
+					path: sides ? playPath(p, sides) : null
 				};
 			})
 		};

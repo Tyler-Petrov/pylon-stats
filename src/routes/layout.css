@@ -16,6 +16,7 @@
  * pylon    #FF7A2F  primary accent, live games
  * turf     #6CC788  wins
  * flag     #E5604F  losses, injuries
+ * penalty  #F2C94C  a thrown flag, in the drive chart
  * Team pages swap in the team's own colour as --team (see routes/teams/[id]).
  */
 :root,
@@ -41,6 +42,8 @@
 	--pylon: #ff7a2f;
 	--turf: #6cc788;
 	--flag: #e5604f;
+	/* A penalty flag, in the drive chart. */
+	--penalty: #f2c94c;
 	--team: var(--pylon);
 	/*
 	 * A quiet hue for each kind of stat, so passing reads as passing in a player's season, career and game log
